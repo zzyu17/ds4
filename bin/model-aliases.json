@@ -1,0 +1,5 @@
+{
+  "q4": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2.gguf",
+  "q4-imatrix": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix.gguf",
+  "deepseek-v4-flash-q4": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2.gguf"
+}

@@ -11,8 +11,10 @@ CTX="${DS4_SERVER_CTX:-262144}"
 THREADS="${DS4_SERVER_THREADS:-}"
 QUALITY="${DS4_SERVER_QUALITY:-0}"
 WARM="${DS4_SERVER_WARM:-0}"
-KV_DISK_DIR="${DS4_SERVER_KV_DISK_DIR:-}"
-KV_DISK_SPACE_MB="${DS4_SERVER_KV_DISK_SPACE_MB:-8192}"
+KV_DISK_DIR="${DS4_SERVER_KV_DISK_DIR:-$HOME/.ollama/kv-cache}"
+KV_DISK_SPACE_MB="${DS4_SERVER_KV_DISK_SPACE_MB:-131072}"
+KV_COLD_MAX="${DS4_SERVER_KV_COLD_MAX:-100000}"
+KV_CONTINUED_INTERVAL="${DS4_SERVER_KV_CONTINUED_INTERVAL:-4096}"
 TRACE="${DS4_SERVER_TRACE:-}"
 LOG_DIR="${DS4_SERVER_LOG_DIR:-$HOME/.ollama/logs}"
 LOG="$LOG_DIR/ds4-server.log"
@@ -34,8 +36,14 @@ Options:
 
 Environment variables: DS4_SERVER_MODEL, DS4_SERVER_PORT, DS4_SERVER_HOST,
   DS4_SERVER_CTX, DS4_SERVER_THREADS, DS4_SERVER_QUALITY, DS4_SERVER_WARM,
-  DS4_SERVER_KV_DISK_DIR, DS4_SERVER_KV_DISK_SPACE_MB, DS4_SERVER_TRACE,
+  DS4_SERVER_KV_DISK_DIR, DS4_SERVER_KV_DISK_SPACE_MB,
+  DS4_SERVER_KV_COLD_MAX, DS4_SERVER_KV_CONTINUED_INTERVAL,
+  DS4_SERVER_TRACE,
   DS4_SERVER_LOG_DIR, DS4_SERVER_LOG_ROTATIONS
+
+Disk KV cache is enabled by default (dir: ~/.ollama/kv-cache, budget: 128 GiB,
+  cold-max: 100000 tokens, continued-interval: 4096 tokens).
+  Set DS4_SERVER_KV_DISK_DIR="" to disable.
 USAGE
 }
 
@@ -125,7 +133,7 @@ EXTRA_ARGS=()
 [[ "$QUALITY" == "1" ]] && EXTRA_ARGS+=(--quality)
 [[ "$WARM" == "1" ]] && EXTRA_ARGS+=(--warm-weights)
 [[ -n "$THREADS" ]] && EXTRA_ARGS+=(-t "$THREADS")
-[[ -n "$KV_DISK_DIR" ]] && EXTRA_ARGS+=(--kv-disk-dir "$KV_DISK_DIR" --kv-disk-space-mb "$KV_DISK_SPACE_MB")
+[[ -n "$KV_DISK_DIR" ]] && EXTRA_ARGS+=(--kv-disk-dir "$KV_DISK_DIR" --kv-disk-space-mb "$KV_DISK_SPACE_MB" --kv-cache-cold-max-tokens "$KV_COLD_MAX" --kv-cache-continued-interval-tokens "$KV_CONTINUED_INTERVAL")
 [[ -n "$TRACE" ]] && EXTRA_ARGS+=(--trace "$TRACE")
 
 cd "$DS4_DIR"
@@ -138,4 +146,4 @@ nohup ./ds4-server \
   > "$LOG" 2>&1 < /dev/null &
 
 echo $! > "$PIDFILE"
-echo "started pid=$! port=$PORT ctx=$CTX quality=$QUALITY warm=$WARM model=$MODEL log=$LOG"
+echo "started pid=$! port=$PORT ctx=$CTX quality=$QUALITY warm=$WARM model=$MODEL log=$LOG kv_cache=${KV_DISK_DIR:-off}"

@@ -21,7 +21,7 @@ MAX_ROT="${DS4_SERVER_LOG_ROTATIONS:-5}"
 
 usage() {
   cat <<USAGE
-Usage: $(basename "$0") [-m model] [-p port] [-c ctx] [-t threads] [-w] [-q on|off] [-h]
+Usage: $(basename "$0") [-m model] [-p port] [-c ctx] [-t threads] [-w] [-q] [-h]
 
 Options:
   -m  MODEL     GGUF model path or alias (default: q4)
@@ -29,7 +29,7 @@ Options:
   -c  CTX       Context size (default: 262144)
   -t  THREADS   CPU threads (default: auto)
   -w            Enable warm-weights (slower startup, fewer first-use stalls)
-  -q            Toggle quality mode (default: off)
+  -q            Enable quality mode (default: off)
   -h            Show this help
 
 Environment variables: DS4_SERVER_MODEL, DS4_SERVER_PORT, DS4_SERVER_HOST,
@@ -54,14 +54,14 @@ except OSError: raise SystemExit(1)
 PY2
 }
 
-while getopts ":m:p:c:t:wq:h" opt; do
+while getopts ":m:p:c:t:wqh" opt; do
   case "$opt" in
     m) MODEL="$OPTARG" ;;
     p) PORT="$OPTARG" ;;
     c) CTX="$OPTARG" ;;
     t) THREADS="$OPTARG" ;;
     w) WARM=1 ;;
-    q) QUALITY="$OPTARG" ;;
+    q) QUALITY=1 ;;
     h) usage; exit 0 ;;
     :) echo "Missing: -$OPTARG" >&2; exit 2 ;;
     \?) echo "Unknown: -$OPTARG" >&2; usage >&2; exit 2 ;;
@@ -122,7 +122,7 @@ fi
 
 # Build extra args
 EXTRA_ARGS=()
-[[ "$QUALITY" != "0" ]] && EXTRA_ARGS+=(--quality)
+[[ "$QUALITY" == "1" ]] && EXTRA_ARGS+=(--quality)
 [[ "$WARM" == "1" ]] && EXTRA_ARGS+=(--warm-weights)
 [[ -n "$THREADS" ]] && EXTRA_ARGS+=(-t "$THREADS")
 [[ -n "$KV_DISK_DIR" ]] && EXTRA_ARGS+=(--kv-disk-dir "$KV_DISK_DIR" --kv-disk-space-mb "$KV_DISK_SPACE_MB")

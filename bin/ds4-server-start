@@ -4,7 +4,7 @@ set -euo pipefail
 DS4_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DS4_SERVER="$DS4_DIR/ds4-server"
 
-MODEL="${DS4_SERVER_MODEL:-q4}"
+MODEL="${DS4_SERVER_MODEL:-flash-q4-imatrix}"
 PORT="${DS4_SERVER_PORT:-17353}"
 HOST="${DS4_SERVER_HOST:-0.0.0.0}"
 CTX="${DS4_SERVER_CTX:-1000000}"
@@ -26,7 +26,7 @@ usage() {
 Usage: $(basename "$0") [-m model] [-p port] [-c ctx] [-t threads] [-w] [-q] [-h]
 
 Options:
-  -m  MODEL     GGUF model path or alias (default: q4)
+  -m  MODEL     GGUF model path or alias (default: flash-q4-imatrix)
   -p  PORT      Server port (default: 17353)
   -c  CTX       Context size (default: 262144)
   -t  THREADS   CPU threads (default: auto)

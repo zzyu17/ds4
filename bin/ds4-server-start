@@ -13,7 +13,7 @@ THREADS="${DS4_SERVER_THREADS:-}"
 QUALITY="${DS4_SERVER_QUALITY:-0}"
 WARM="${DS4_SERVER_WARM:-0}"
 KV_DISK_DIR="${DS4_SERVER_KV_DISK_DIR:-$HOME/.ollama/kv-cache}"
-KV_DISK_SPACE_MB="${DS4_SERVER_KV_DISK_SPACE_MB:-262144}"
+KV_DISK_SPACE_MB="${DS4_SERVER_KV_DISK_SPACE_MB:-1048576}"
 KV_COLD_MAX="${DS4_SERVER_KV_COLD_MAX:-100000}"
 KV_CONTINUED_INTERVAL="${DS4_SERVER_KV_CONTINUED_INTERVAL:-4096}"
 TRACE="${DS4_SERVER_TRACE:-}"
@@ -43,7 +43,7 @@ Environment variables: DS4_SERVER_MODEL, DS4_SERVER_PORT, DS4_SERVER_HOST,
   DS4_SERVER_LOG_DIR, DS4_SERVER_LOG_ROTATIONS
 
 Disk KV cache is enabled by default (dir: ~/.ollama/kv-cache/<model-alias>,
-  budget: 256 GiB, cold-max: 100000 tokens, continued-interval: 4096 tokens).
+  budget: 1 TiB, cold-max: 100000 tokens, continued-interval: 4096 tokens).
   Set DS4_SERVER_KV_DISK_DIR="" to disable, or set to a custom path to override.
 USAGE
 }

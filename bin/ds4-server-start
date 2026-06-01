@@ -136,6 +136,7 @@ print("")
 PY5
     )
   fi
+
   if [[ -n "$CANONICAL_NAME" ]]; then
     KV_DIR_NAME="$CANONICAL_NAME"
   elif [[ "$MODEL_ALIAS" == *"/"* ]]; then
@@ -152,6 +153,94 @@ if [[ -f "$PIDFILE" ]]; then
   [[ -n "$old" ]] && alive "$old" && term "$old"
 fi
 for p in $(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true); do term "$p"; done
+
+# --- purge incompatible KV cache files after `ds4` updates ---
+if [[ -n "$KV_DISK_DIR" && -d "$KV_DISK_DIR" ]]; then
+  python3 - "$DS4_DIR" "$KV_DISK_DIR" <<'PYKV'
+import os, re, sys
+
+ds4_dir = sys.argv[1]
+cache_dir = sys.argv[2]
+c_path = os.path.join(ds4_dir, 'ds4_kvstore.c')
+h_path = os.path.join(ds4_dir, 'ds4_kvstore.h')
+
+def parse_consts(path):
+    consts = {}
+    pat = re.compile(r"#define\s+(\w+)\s+(.+)$")
+    with open(path, 'r') as f:
+        for line in f:
+            m = pat.match(line.strip())
+            if not m:
+                continue
+            name, val = m.group(1), m.group(2)
+            val = val.split('//')[0].strip()
+            mchar = re.match(r"'(.)'", val)
+            if mchar:
+                consts[name] = ord(mchar.group(1))
+                continue
+            val = re.sub(r"[uUlL]+\b", '', val)
+            try:
+                consts[name] = int(val, 0)
+            except ValueError:
+                continue
+    return consts
+
+consts = parse_consts(c_path)
+need = ['KV_CACHE_MAGIC0', 'KV_CACHE_MAGIC1', 'KV_CACHE_MAGIC2', 'KV_CACHE_VERSION', 'KV_CACHE_PAYLOAD_ABI']
+missing = [n for n in need if n not in consts]
+if missing:
+    raise SystemExit(f'kv-cache: missing constants {missing} in {c_path}')
+
+fixed_header = None
+with open(h_path, 'r') as f:
+    for line in f:
+        if line.strip().startswith('#define DS4_KVSTORE_FIXED_HEADER'):
+            v = line.split()[-1].split('//')[0].strip()
+            v = re.sub(r"[uUlL]+\b", '', v)
+            fixed_header = int(v, 0)
+            break
+if fixed_header is None:
+    raise SystemExit(f'kv-cache: missing DS4_KVSTORE_FIXED_HEADER in {h_path}')
+
+magic = (consts['KV_CACHE_MAGIC0'], consts['KV_CACHE_MAGIC1'], consts['KV_CACHE_MAGIC2'])
+version = consts['KV_CACHE_VERSION']
+payload_abi = consts['KV_CACHE_PAYLOAD_ABI']
+
+removed = 0
+removed_bytes = 0
+errors = 0
+
+for name in os.listdir(cache_dir):
+    if not name.endswith('.kv') or len(name) != 43:
+        continue
+    path = os.path.join(cache_dir, name)
+    try:
+        size = os.path.getsize(path)
+        with open(path, 'rb') as fp:
+            h = fp.read(fixed_header)
+        if len(h) < fixed_header:
+            bad = True
+        elif (h[0], h[1], h[2]) != magic:
+            bad = True
+        elif h[3] != version:
+            bad = True
+        elif h[20] != payload_abi:
+            bad = True
+        else:
+            bad = False
+        if bad:
+            os.remove(path)
+            removed += 1
+            removed_bytes += size
+    except Exception as exc:
+        errors += 1
+        print(f'[kv-cache] warn: {path}: {exc}', file=sys.stderr)
+
+if removed or errors:
+    gib = 1024 ** 3
+    print(f'[kv-cache] removed={removed} freed={removed_bytes / gib:.2f} GiB errors={errors}', file=sys.stderr)
+PYKV
+fi
 
 if [[ -f "$LOG" && -s "$LOG" ]]; then
   for ((i=MAX_ROT;i>=1;i--)); do

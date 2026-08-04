@@ -1,5 +1,6 @@
 #include "ds4.h"
 #include "ds4_distributed.h"
+#include "ds4_help.h"
 
 /* Purpose-built throughput benchmark.
  *
@@ -27,6 +28,7 @@ typedef struct {
     const char *chat_prompt_path;
     const char *system;
     const char *csv_path;
+    const char *expert_profile_path;
     ds4_backend backend;
     int threads;
     int ctx_start;
@@ -35,11 +37,18 @@ typedef struct {
     int step_incr;
     int gen_tokens;
     int power_percent;
+    uint32_t prefill_chunk;
+    uint32_t ssd_streaming_cache_experts;
+    uint64_t ssd_streaming_cache_bytes;
+    uint32_t ssd_streaming_preload_experts;
+    uint64_t simulate_used_memory_bytes;
     double step_mul;
     const char *dump_frontier_logits_dir;
     ds4_dist_options dist;
     bool warm_weights;
     bool quality;
+    bool ssd_streaming;
+    bool ssd_streaming_cold;
 } bench_config;
 
 static double bench_now_sec(void) {
@@ -48,50 +57,8 @@ static double bench_now_sec(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 }
 
-static void usage(FILE *fp) {
-    fprintf(fp,
-        "Usage: ds4-bench --prompt-file FILE [options]\n"
-        "\n"
-        "Benchmarks instantaneous prefill and generation throughput at context\n"
-        "frontiers such as 2048, 4096, 6144, ... . Generation is always greedy,\n"
-        "runs for exactly --gen-tokens tokens, and skips EOS so every row is\n"
-        "comparable.\n"
-        "\n"
-        "Input:\n"
-        "  --prompt-file FILE\n"
-        "      Raw benchmark text. The fixed token sequence is sliced at each frontier.\n"
-        "  --chat-prompt-file FILE\n"
-        "      Render FILE as one no-thinking chat user message, then slice that sequence.\n"
-        "  -sys, --system TEXT\n"
-        "      System prompt used only with --chat-prompt-file.\n"
-        "\n"
-        "Model and backend:\n"
-        "  -m, --model FILE       GGUF model path. Default: ds4flash.gguf\n"
-        "  --metal | --cuda | --cpu | --backend NAME\n"
-        "      Select backend explicitly. Defaults to Metal on macOS, CUDA elsewhere.\n"
-        "  -t, --threads N        CPU helper threads.\n"
-        "  --quality              Prefer exact kernels where applicable.\n"
-        "  --warm-weights         Touch mapped tensor pages before benchmarking.\n"
-        "  --power N              Target GPU duty cycle percentage, 1..100. Default: 100\n"
-        "\n"
-        "Distributed:\n");
-    ds4_dist_usage(fp);
-    fprintf(fp,
-        "\n"
-        "\n"
-        "Sweep:\n"
-        "  --ctx-start N          First measured frontier. Default: 2048\n"
-        "  --ctx-max N            Last measured frontier. Default: 32768\n"
-        "  --ctx-alloc N          Allocated context. Default: ctx-max + gen-tokens + 1\n"
-        "  --step-mul F           Multiplicative step. Default: 1\n"
-        "  --step-incr N          Linear step when --step-mul is 1. Default: 2048\n"
-        "  --gen-tokens N         Greedy decode tokens per frontier. Use 0 for pure prefill. Default: 128\n"
-        "\n"
-        "Output:\n"
-        "  --csv FILE             Write CSV there instead of stdout.\n"
-        "  --dump-frontier-logits-dir DIR\n"
-        "      Write one full-logit JSON file per measured frontier. DIR must exist.\n"
-        "  -h, --help             Show this help.\n");
+static void usage(FILE *fp, const char *topic) {
+    ds4_help_print(fp, DS4_HELP_BENCH, topic);
 }
 
 static int parse_int(const char *s, const char *opt) {
@@ -134,10 +101,18 @@ static const char *need_arg(int *i, int argc, char **argv, const char *opt) {
 
 static ds4_backend parse_backend(const char *s, const char *opt) {
     if (!strcmp(s, "metal")) return DS4_BACKEND_METAL;
+#ifdef DS4_ROCM_BUILD
+    if (!strcmp(s, "rocm")) return DS4_BACKEND_CUDA;
+#else
     if (!strcmp(s, "cuda")) return DS4_BACKEND_CUDA;
+#endif
     if (!strcmp(s, "cpu")) return DS4_BACKEND_CPU;
     fprintf(stderr, "ds4-bench: invalid value for %s: %s\n", opt, s);
+#ifdef DS4_ROCM_BUILD
+    fprintf(stderr, "ds4-bench: valid backends are: metal, rocm, cpu\n");
+#else
     fprintf(stderr, "ds4-bench: valid backends are: metal, cuda, cpu\n");
+#endif
     exit(2);
 }
 
@@ -205,7 +180,9 @@ static bench_config parse_options(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
-            usage(stdout);
+            const char *topic = (i + 1 < argc && argv[i + 1][0] != '-') ?
+                argv[i + 1] : NULL;
+            usage(stdout, topic);
             exit(0);
         }
         char dist_parse_err[256] = {0};
@@ -249,18 +226,56 @@ static bench_config parse_options(int argc, char **argv) {
             c.csv_path = need_arg(&i, argc, argv, arg);
         } else if (!strcmp(arg, "--dump-frontier-logits-dir")) {
             c.dump_frontier_logits_dir = need_arg(&i, argc, argv, arg);
+        } else if (!strcmp(arg, "--expert-profile")) {
+            c.expert_profile_path = need_arg(&i, argc, argv, arg);
         } else if (!strcmp(arg, "-t") || !strcmp(arg, "--threads")) {
             c.threads = parse_int(need_arg(&i, argc, argv, arg), arg);
         } else if (!strcmp(arg, "--backend")) {
             c.backend = parse_backend(need_arg(&i, argc, argv, arg), arg);
         } else if (!strcmp(arg, "--metal")) {
             c.backend = DS4_BACKEND_METAL;
+#ifdef DS4_ROCM_BUILD
+        } else if (!strcmp(arg, "--rocm")) {
+            c.backend = DS4_BACKEND_CUDA;
+#else
         } else if (!strcmp(arg, "--cuda")) {
             c.backend = DS4_BACKEND_CUDA;
+#endif
         } else if (!strcmp(arg, "--cpu")) {
             c.backend = DS4_BACKEND_CPU;
         } else if (!strcmp(arg, "--quality")) {
             c.quality = true;
+        } else if (!strcmp(arg, "--ssd-streaming")) {
+            c.ssd_streaming = true;
+        } else if (!strcmp(arg, "--ssd-streaming-cold")) {
+            c.ssd_streaming_cold = true;
+        } else if (!strcmp(arg, "--ssd-streaming-cache-experts")) {
+            uint32_t experts = 0;
+            uint64_t bytes = 0;
+            if (!ds4_parse_streaming_cache_experts_arg(
+                    need_arg(&i, argc, argv, arg), &experts, &bytes)) {
+                fprintf(stderr,
+                        "ds4-bench: --ssd-streaming-cache-experts must be a positive count or <number>GB\n");
+                exit(2);
+            }
+            c.ssd_streaming_cache_experts = experts;
+            c.ssd_streaming_cache_bytes = bytes;
+        } else if (!strcmp(arg, "--ssd-streaming-preload-experts")) {
+            int v = parse_int(need_arg(&i, argc, argv, arg), arg);
+            if (v <= 0) {
+                fprintf(stderr, "ds4-bench: --ssd-streaming-preload-experts must be positive\n");
+                exit(2);
+            }
+            c.ssd_streaming_preload_experts = (uint32_t)v;
+        } else if (!strcmp(arg, "--simulate-used-memory")) {
+            if (!ds4_parse_gib_arg(need_arg(&i, argc, argv, arg),
+                                   &c.simulate_used_memory_bytes)) {
+                fprintf(stderr,
+                        "ds4-bench: --simulate-used-memory must be a positive GiB value, e.g. 64GB\n");
+                exit(2);
+            }
+        } else if (!strcmp(arg, "--prefill-chunk")) {
+            c.prefill_chunk = (uint32_t)parse_int(need_arg(&i, argc, argv, arg), arg);
         } else if (!strcmp(arg, "--power")) {
             c.power_percent = parse_int(need_arg(&i, argc, argv, arg), arg);
             if (c.power_percent < 1 || c.power_percent > 100) {
@@ -271,7 +286,7 @@ static bench_config parse_options(int argc, char **argv) {
             c.warm_weights = true;
         } else {
             fprintf(stderr, "ds4-bench: unknown option: %s\n", arg);
-            usage(stderr);
+            usage(stderr, NULL);
             exit(2);
         }
     }
@@ -424,8 +439,13 @@ static int next_frontier(const bench_config *c, int cur) {
     return next;
 }
 
-static void log_context_memory(ds4_backend backend, int ctx_size) {
-    ds4_context_memory m = ds4_context_memory_estimate(backend, ctx_size);
+static void log_context_memory(ds4_backend backend,
+                               int         ctx_size,
+                               uint32_t    prefill_chunk) {
+    ds4_context_memory m =
+        ds4_context_memory_estimate_with_prefill(backend,
+                                                 ctx_size,
+                                                 prefill_chunk);
     fprintf(stderr,
             "ds4-bench: context buffers %.2f MiB (ctx=%d, backend=%s, prefill_chunk=%u, raw_kv_rows=%u, compressed_kv_rows=%u)\n",
             (double)m.total_bytes / (1024.0 * 1024.0),
@@ -492,9 +512,17 @@ int main(int argc, char **argv) {
         .model_path = cfg.model_path,
         .backend = cfg.backend,
         .n_threads = cfg.threads,
+        .prefill_chunk = cfg.prefill_chunk,
+        .ssd_streaming_cache_experts = cfg.ssd_streaming_cache_experts,
+        .ssd_streaming_cache_bytes = cfg.ssd_streaming_cache_bytes,
+        .ssd_streaming_preload_experts = cfg.ssd_streaming_preload_experts,
+        .simulate_used_memory_bytes = cfg.simulate_used_memory_bytes,
         .power_percent = cfg.power_percent,
         .warm_weights = cfg.warm_weights,
         .quality = cfg.quality,
+        .ssd_streaming = cfg.ssd_streaming,
+        .ssd_streaming_cold = cfg.ssd_streaming_cold,
+        .expert_profile_path = cfg.expert_profile_path,
         .distributed = cfg.dist,
     };
     char dist_err[256];
@@ -504,7 +532,7 @@ int main(int argc, char **argv) {
     }
     ds4_engine *engine = NULL;
     if (ds4_engine_open(&engine, &opt) != 0) return 1;
-    log_context_memory(cfg.backend, cfg.ctx_alloc);
+    log_context_memory(cfg.backend, cfg.ctx_alloc, cfg.prefill_chunk);
 
     char *text = read_file(cfg.prompt_path ? cfg.prompt_path : cfg.chat_prompt_path);
     ds4_tokens prompt = {0};

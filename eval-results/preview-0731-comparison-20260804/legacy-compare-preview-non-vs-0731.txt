@@ -1,0 +1,47 @@
+cases	100
+tokens	2290
+old_avg_nll	0.176606674
+new_avg_nll	0.520371202
+delta_new_minus_old	0.343764528
+relative_nll_change	194.650%
+case_wins_new_old_ties	7	93	0
+first_token_matches_old_new	82	47
+avg_greedy_lcp_old_new	12.200	5.370
+old_api_target_tokens	2290
+old_api_target_mae	0.176606674
+old_api_target_mean_delta	-0.176606674
+old_api_top_coverage	0.830567686
+old_api_top1_rate	0.940611354
+old_api_topn_recall	0.351524711
+old_api_top_mae	7568.193730022
+old_api_top_mean_delta	7568.108676545
+old_api_pair_rate	0.993514558
+new_api_target_tokens	2290
+new_api_target_mae	0.520371202
+new_api_target_mean_delta	-0.520371202
+new_api_top_coverage	0.830567686
+new_api_top1_rate	0.852401747
+new_api_topn_recall	0.322292324
+new_api_top_mae	7568.677583561
+new_api_top_mean_delta	7568.426973666
+new_api_pair_rate	0.982337519
+
+new best cases:
+case_097	delta_nll=-3.301642	tokens=11	old=0.300263	new=0.000114
+case_025	delta_nll=-1.015317	tokens=24	old=0.069945	new=0.027640
+case_060	delta_nll=-0.551306	tokens=24	old=0.043747	new=0.020776
+case_033	delta_nll=-0.423228	tokens=24	old=0.160160	new=0.142525
+case_092	delta_nll=-0.360909	tokens=24	old=0.097291	new=0.082254
+case_084	delta_nll=-0.357380	tokens=11	old=0.033205	new=0.000716
+case_083	delta_nll=-0.012644	tokens=17	old=0.001138	new=0.000394
+case_021	delta_nll=0.202093	tokens=24	old=0.008370	new=0.016791
+
+old best cases:
+case_004	delta_nll=27.341507	tokens=24	old=0.462991	new=1.602221
+case_068	delta_nll=27.235861	tokens=24	old=0.399788	new=1.534615
+case_091	delta_nll=25.233085	tokens=24	old=0.312886	new=1.364265
+case_028	delta_nll=25.099458	tokens=24	old=0.169218	new=1.215029
+case_090	delta_nll=20.866898	tokens=24	old=0.227433	new=1.096887
+case_061	delta_nll=20.614026	tokens=24	old=0.344144	new=1.203062
+case_093	delta_nll=19.845815	tokens=24	old=0.217623	new=1.044532
+case_008	delta_nll=18.885936	tokens=24	old=0.161978	new=0.948892

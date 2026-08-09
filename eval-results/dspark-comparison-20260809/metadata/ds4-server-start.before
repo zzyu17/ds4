@@ -1,0 +1,270 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DS4_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+DS4_SERVER="$DS4_DIR/ds4-server"
+
+MODEL="${DS4_SERVER_MODEL:-flash-q4-imatrix-0731}"
+MODEL_ALIAS="$MODEL"
+PORT="${DS4_SERVER_PORT:-17353}"
+HOST="${DS4_SERVER_HOST:-0.0.0.0}"
+CTX="${DS4_SERVER_CTX:-1000000}"
+THREADS="${DS4_SERVER_THREADS:-}"
+QUALITY="${DS4_SERVER_QUALITY:-0}"
+WARM="${DS4_SERVER_WARM:-0}"
+KV_DISK_DIR="${DS4_SERVER_KV_DISK_DIR:-$HOME/.ollama/kv-cache}"
+KV_DISK_SPACE_MB="${DS4_SERVER_KV_DISK_SPACE_MB:-1048576}"
+KV_COLD_MAX="${DS4_SERVER_KV_COLD_MAX:-100000}"
+KV_CONTINUED_INTERVAL="${DS4_SERVER_KV_CONTINUED_INTERVAL:-4096}"
+TRACE="${DS4_SERVER_TRACE:-}"
+LOG_DIR="${DS4_SERVER_LOG_DIR:-$HOME/.ollama/logs}"
+LOG="$LOG_DIR/ds4-server.log"
+PIDFILE="$LOG_DIR/ds4-server.pid"
+MAX_ROT="${DS4_SERVER_LOG_ROTATIONS:-5}"
+
+usage() {
+  cat <<USAGE
+Usage: $(basename "$0") [-m model] [-p port] [-c ctx] [-t threads] [-w] [-q] [-h]
+
+Options:
+  -m  MODEL     GGUF model path or alias (default: flash-q4-imatrix-0731)
+  -p  PORT      Server port (default: 17353)
+  -c  CTX       Context size (default: 1000000)
+  -t  THREADS   CPU threads (default: auto)
+  -w            Enable warm-weights (slower startup, fewer first-use stalls)
+  -q            Enable quality mode (default: off)
+  -h            Show this help
+
+Environment variables: DS4_SERVER_MODEL, DS4_SERVER_PORT, DS4_SERVER_HOST,
+  DS4_SERVER_CTX, DS4_SERVER_THREADS, DS4_SERVER_QUALITY, DS4_SERVER_WARM,
+  DS4_SERVER_KV_DISK_DIR, DS4_SERVER_KV_DISK_SPACE_MB,
+  DS4_SERVER_KV_COLD_MAX, DS4_SERVER_KV_CONTINUED_INTERVAL,
+  DS4_SERVER_TRACE,
+  DS4_SERVER_LOG_DIR, DS4_SERVER_LOG_ROTATIONS
+
+Disk KV cache is enabled by default (dir: ~/.ollama/kv-cache/<model-alias>,
+  budget: 1 TiB, cold-max: 100000 tokens, continued-interval: 4096 tokens).
+  Set DS4_SERVER_KV_DISK_DIR="" to disable, or set to a custom path to override.
+USAGE
+}
+
+term() {
+  python3 - "$1" <<'PY2'
+import os,sys
+os.kill(int(sys.argv[1]),9)
+PY2
+}
+
+alive() {
+  python3 - "$1" <<'PY2'
+import os,sys
+try: os.kill(int(sys.argv[1]),0)
+except OSError: raise SystemExit(1)
+PY2
+}
+
+while getopts ":m:p:c:t:wqh" opt; do
+  case "$opt" in
+    m) MODEL="$OPTARG" ;;
+    p) PORT="$OPTARG" ;;
+    c) CTX="$OPTARG" ;;
+    t) THREADS="$OPTARG" ;;
+    w) WARM=1 ;;
+    q) QUALITY=1 ;;
+    h) usage; exit 0 ;;
+    :) echo "Missing: -$OPTARG" >&2; exit 2 ;;
+    \?) echo "Unknown: -$OPTARG" >&2; usage >&2; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+# --- alias resolution ---
+ALIAS_FILE="$(dirname "$0")/model-aliases.json"
+if [[ -f "$ALIAS_FILE" ]]; then
+  resolved=$(python3 - "$MODEL" "$ALIAS_FILE" <<'PY3'
+import json, sys, os
+model = sys.argv[1]
+alias_file = sys.argv[2]
+if os.path.exists(model):
+    print(model)
+    sys.exit(0)
+with open(alias_file) as f:
+    config = json.load(f)
+for entry in config.get("model-aliases", []):
+    if model in entry.get("alias", []):
+        print(entry["model"])
+        sys.exit(0)
+print("")
+PY3
+  )
+  if [[ -n "$resolved" ]]; then
+    echo "[alias] $MODEL -> $resolved" >&2
+    MODEL="$resolved"
+  elif [[ ! -f "$MODEL" ]]; then
+    echo "Error: model not found: $MODEL (not a file path, not a known alias)" >&2
+    echo "Known aliases:" >&2
+    python3 - "$ALIAS_FILE" <<'PY4' >&2
+import json, sys
+with open(sys.argv[1]) as f:
+    config = json.load(f)
+for entry in config.get("model-aliases", []):
+    path = entry.get("model", "")
+    for alias in entry.get("alias", []):
+        print(f"  {alias} -> {path}")
+PY4
+    exit 1
+  fi
+fi
+
+# --- model-specific KV cache subdirectory ---
+# Only auto-derive if DS4_SERVER_KV_DISK_DIR is unset (not just empty)
+# Set DS4_SERVER_KV_DISK_DIR="" to disable, or set to a path to override
+if [[ -z "${DS4_SERVER_KV_DISK_DIR+x}" ]]; then
+  CANONICAL_NAME=""
+  if [[ -f "$ALIAS_FILE" ]]; then
+    CANONICAL_NAME=$(python3 - "$MODEL_ALIAS" "$ALIAS_FILE" <<'PY5'
+import json, sys
+alias = sys.argv[1]
+alias_file = sys.argv[2]
+with open(alias_file) as f:
+    config = json.load(f)
+for entry in config.get("model-aliases", []):
+    if alias in entry.get("alias", []):
+        print(entry.get("cache", ""))
+        sys.exit(0)
+print("")
+PY5
+    )
+  fi
+
+  if [[ -n "$CANONICAL_NAME" ]]; then
+    KV_DIR_NAME="$CANONICAL_NAME"
+  elif [[ "$MODEL_ALIAS" == *"/"* ]]; then
+    KV_DIR_NAME="$(basename "$MODEL_ALIAS" .gguf)"
+  else
+    KV_DIR_NAME="$MODEL_ALIAS"
+  fi
+  KV_DISK_DIR="$HOME/.ollama/kv-cache/$KV_DIR_NAME"
+fi
+
+mkdir -p "$LOG_DIR"
+if [[ -f "$PIDFILE" ]]; then
+  old=$(cat "$PIDFILE" 2>/dev/null || true)
+  [[ -n "$old" ]] && alive "$old" && term "$old"
+fi
+for p in $(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true); do term "$p"; done
+
+# --- purge incompatible KV cache files after `ds4` updates ---
+if [[ -n "$KV_DISK_DIR" && -d "$KV_DISK_DIR" ]]; then
+  python3 - "$DS4_DIR" "$KV_DISK_DIR" <<'PYKV'
+import os, re, sys
+
+ds4_dir = sys.argv[1]
+cache_dir = sys.argv[2]
+c_path = os.path.join(ds4_dir, 'ds4_kvstore.c')
+h_path = os.path.join(ds4_dir, 'ds4_kvstore.h')
+
+def parse_consts(path):
+    consts = {}
+    pat = re.compile(r"#define\s+(\w+)\s+(.+)$")
+    with open(path, 'r') as f:
+        for line in f:
+            m = pat.match(line.strip())
+            if not m:
+                continue
+            name, val = m.group(1), m.group(2)
+            val = val.split('//')[0].strip()
+            mchar = re.match(r"'(.)'", val)
+            if mchar:
+                consts[name] = ord(mchar.group(1))
+                continue
+            val = re.sub(r"[uUlL]+\b", '', val)
+            try:
+                consts[name] = int(val, 0)
+            except ValueError:
+                continue
+    return consts
+
+consts = parse_consts(c_path)
+need = ['KV_CACHE_MAGIC0', 'KV_CACHE_MAGIC1', 'KV_CACHE_MAGIC2', 'KV_CACHE_VERSION', 'KV_CACHE_PAYLOAD_ABI']
+missing = [n for n in need if n not in consts]
+if missing:
+    raise SystemExit(f'kv-cache: missing constants {missing} in {c_path}')
+
+fixed_header = None
+with open(h_path, 'r') as f:
+    for line in f:
+        if line.strip().startswith('#define DS4_KVSTORE_FIXED_HEADER'):
+            v = line.split()[-1].split('//')[0].strip()
+            v = re.sub(r"[uUlL]+\b", '', v)
+            fixed_header = int(v, 0)
+            break
+if fixed_header is None:
+    raise SystemExit(f'kv-cache: missing DS4_KVSTORE_FIXED_HEADER in {h_path}')
+
+magic = (consts['KV_CACHE_MAGIC0'], consts['KV_CACHE_MAGIC1'], consts['KV_CACHE_MAGIC2'])
+version = consts['KV_CACHE_VERSION']
+payload_abi = consts['KV_CACHE_PAYLOAD_ABI']
+
+removed = 0
+removed_bytes = 0
+errors = 0
+
+for name in os.listdir(cache_dir):
+    if not name.endswith('.kv') or len(name) != 43:
+        continue
+    path = os.path.join(cache_dir, name)
+    try:
+        size = os.path.getsize(path)
+        with open(path, 'rb') as fp:
+            h = fp.read(fixed_header)
+        if len(h) < fixed_header:
+            bad = True
+        elif (h[0], h[1], h[2]) != magic:
+            bad = True
+        elif h[3] != version:
+            bad = True
+        elif h[20] != payload_abi:
+            bad = True
+        else:
+            bad = False
+        if bad:
+            os.remove(path)
+            removed += 1
+            removed_bytes += size
+    except Exception as exc:
+        errors += 1
+        print(f'[kv-cache] warn: {path}: {exc}', file=sys.stderr)
+
+if removed or errors:
+    gib = 1024 ** 3
+    print(f'[kv-cache] removed={removed} freed={removed_bytes / gib:.2f} GiB errors={errors}', file=sys.stderr)
+PYKV
+fi
+
+if [[ -f "$LOG" && -s "$LOG" ]]; then
+  for ((i=MAX_ROT;i>=1;i--)); do
+    [[ -e "${LOG_DIR}/ds4-server-${i}.log" ]] && { (( i == MAX_ROT )) && rm -f "${LOG_DIR}/ds4-server-${i}.log" || mv -f "${LOG_DIR}/ds4-server-${i}.log" "${LOG_DIR}/ds4-server-$((i+1)).log"; }
+  done
+  mv -f "$LOG" "${LOG_DIR}/ds4-server-1.log"
+fi
+
+# Build extra args
+EXTRA_ARGS=()
+[[ "$QUALITY" == "1" ]] && EXTRA_ARGS+=(--quality)
+[[ "$WARM" == "1" ]] && EXTRA_ARGS+=(--warm-weights)
+[[ -n "$THREADS" ]] && EXTRA_ARGS+=(-t "$THREADS")
+[[ -n "$KV_DISK_DIR" ]] && EXTRA_ARGS+=(--kv-disk-dir "$KV_DISK_DIR" --kv-disk-space-mb "$KV_DISK_SPACE_MB" --kv-cache-cold-max-tokens "$KV_COLD_MAX" --kv-cache-continued-interval-tokens "$KV_CONTINUED_INTERVAL")
+[[ -n "$TRACE" ]] && EXTRA_ARGS+=(--trace "$TRACE")
+
+cd "$DS4_DIR"
+nohup ./ds4-server \
+  -m "$MODEL" \
+  --port "$PORT" \
+  --host "$HOST" \
+  --ctx "$CTX" \
+  ${EXTRA_ARGS:+"${EXTRA_ARGS[@]}"} \
+  > "$LOG" 2>&1 < /dev/null &
+
+echo $! > "$PIDFILE"
+echo "started pid=$! port=$PORT ctx=$CTX quality=$QUALITY warm=$WARM model=$MODEL log=$LOG kv_cache=${KV_DISK_DIR:-off}"

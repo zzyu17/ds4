@@ -1,0 +1,922 @@
+{
+  "dspark": {
+    "1": [
+      {
+        "completion_tokens": 34,
+        "completion_tokens_per_second": 23.439934478488915,
+        "request_latency_seconds": [
+          1.450302917000002
+        ],
+        "responses": [
+          {
+            "elapsed": 1.450302917000002,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          }
+        ],
+        "wall_seconds": 1.4505160000000075
+      },
+      {
+        "completion_tokens": 34,
+        "completion_tokens_per_second": 23.694313379911435,
+        "request_latency_seconds": [
+          1.4347862090000092
+        ],
+        "responses": [
+          {
+            "elapsed": 1.4347862090000092,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its greatest strength and its most dangerous liability, as every allocation must be explicitly freed to avoid leaks or dangling pointers.",
+            "tokens": 34
+          }
+        ],
+        "wall_seconds": 1.4349434589999959
+      },
+      {
+        "completion_tokens": 34,
+        "completion_tokens_per_second": 23.11458430190105,
+        "request_latency_seconds": [
+          1.470758458000006
+        ],
+        "responses": [
+          {
+            "elapsed": 1.470758458000006,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its greatest strength and its most dangerous liability, as every allocation must be explicitly freed to avoid leaks or dangling pointers.",
+            "tokens": 34
+          }
+        ],
+        "wall_seconds": 1.4709327909999956
+      }
+    ],
+    "2": [
+      {
+        "completion_tokens": 72,
+        "completion_tokens_per_second": 23.175381001597856,
+        "request_latency_seconds": [
+          3.1065634579999966,
+          2.7579310419999956
+        ],
+        "responses": [
+          {
+            "elapsed": 3.1065634579999966,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 2.7579310419999956,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          }
+        ],
+        "wall_seconds": 3.1067450410000106
+      },
+      {
+        "completion_tokens": 72,
+        "completion_tokens_per_second": 23.42682847718095,
+        "request_latency_seconds": [
+          3.0732296670000068,
+          2.7678508340000008
+        ],
+        "responses": [
+          {
+            "elapsed": 3.0732296670000068,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its greatest strength and its most dangerous liability, as every allocation must be explicitly freed to avoid leaks or dangling pointers.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 2.7678508340000008,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          }
+        ],
+        "wall_seconds": 3.073399374999994
+      },
+      {
+        "completion_tokens": 72,
+        "completion_tokens_per_second": 23.593127349004167,
+        "request_latency_seconds": [
+          3.051555124999993,
+          2.7019947499999972
+        ],
+        "responses": [
+          {
+            "elapsed": 3.051555124999993,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 2.7019947499999972,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          }
+        ],
+        "wall_seconds": 3.051736166000012
+      }
+    ],
+    "4": [
+      {
+        "completion_tokens": 143,
+        "completion_tokens_per_second": 23.135261987731177,
+        "request_latency_seconds": [
+          5.958161042,
+          4.807166207999998,
+          6.180594749999997,
+          5.957732708000009
+        ],
+        "responses": [
+          {
+            "elapsed": 5.958161042,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 4.807166207999998,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 6.180594749999997,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.957732708000009,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          }
+        ],
+        "wall_seconds": 6.181040874999994
+      },
+      {
+        "completion_tokens": 143,
+        "completion_tokens_per_second": 23.375965679573287,
+        "request_latency_seconds": [
+          6.089654917000004,
+          5.447751166999993,
+          6.116981874999993,
+          5.447434541000007
+        ],
+        "responses": [
+          {
+            "elapsed": 6.089654917000004,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 5.447751166999993,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 6.116981874999993,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join algorithms.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.447434541000007,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          }
+        ],
+        "wall_seconds": 6.1173943339999965
+      },
+      {
+        "completion_tokens": 143,
+        "completion_tokens_per_second": 23.43380966403576,
+        "request_latency_seconds": [
+          5.838128042000008,
+          5.2150642910000045,
+          6.101876875000002,
+          5.781047334000007
+        ],
+        "responses": [
+          {
+            "elapsed": 5.838128042000008,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its greatest strength and its most dangerous liability, as every allocation must be explicitly freed to avoid leaks or dangling pointers.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 5.2150642910000045,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 6.101876875000002,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.781047334000007,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          }
+        ],
+        "wall_seconds": 6.102294166000007
+      }
+    ],
+    "8": [
+      {
+        "completion_tokens": 265,
+        "completion_tokens_per_second": 21.54631112841852,
+        "request_latency_seconds": [
+          10.885626791000007,
+          11.597552832999995,
+          11.59753375000001,
+          12.195838292000005,
+          12.298384208000002,
+          11.348779082999997,
+          10.884988792000001,
+          9.966065833000002
+        ],
+        "responses": [
+          {
+            "elapsed": 10.885626791000007,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its greatest strength and its most dangerous liability, as every allocation must be explicitly freed to avoid leaks or dangling pointers.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 11.597552832999995,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 11.59753375000001,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table sizes, indexes, and join methods.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 12.195838292000005,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          },
+          {
+            "elapsed": 12.298384208000002,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing linear algebra computations, such as solving linear systems, eigenvalue problems, and least-squares problems, with finite precision arithmetic.",
+            "tokens": 36
+          },
+          {
+            "elapsed": 11.348779082999997,
+            "finish": "stop",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across a network, ensuring interoperability between different devices and software.",
+            "tokens": 32
+          },
+          {
+            "elapsed": 10.884988792000001,
+            "finish": "stop",
+            "text": "1. Start by understanding the target architecture's instruction set and memory model, as this dictates which optimizations are legal and profitable.",
+            "tokens": 26
+          },
+          {
+            "elapsed": 9.966065833000002,
+            "finish": "stop",
+            "text": "1. Start by understanding the fundamental difference between concurrency (interleaving tasks) and parallelism (simultaneous execution on multiple cores).",
+            "tokens": 28
+          }
+        ],
+        "wall_seconds": 12.299089084000002
+      },
+      {
+        "completion_tokens": 265,
+        "completion_tokens_per_second": 21.720831286583163,
+        "request_latency_seconds": [
+          10.455964500000007,
+          11.976325875,
+          11.68339970800001,
+          11.97595237500002,
+          12.199558249999995,
+          7.144211542000008,
+          11.97561541600001,
+          10.773740875000001
+        ],
+        "responses": [
+          {
+            "elapsed": 10.455964500000007,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 11.976325875,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 11.68339970800001,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 11.97595237500002,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          },
+          {
+            "elapsed": 12.199558249999995,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing linear algebra computations, such as solving linear systems, eigenvalue problems, and least-squares problems, with finite precision arithmetic.",
+            "tokens": 36
+          },
+          {
+            "elapsed": 7.144211542000008,
+            "finish": "stop",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across a network, ensuring interoperability between different devices and software.",
+            "tokens": 32
+          },
+          {
+            "elapsed": 11.97561541600001,
+            "finish": "stop",
+            "text": "1. Start by understanding the target architecture's instruction set and memory model, as this dictates which optimizations are legal and profitable.",
+            "tokens": 26
+          },
+          {
+            "elapsed": 10.773740875000001,
+            "finish": "stop",
+            "text": "1. Start by understanding the fundamental difference between concurrency (interleaving tasks) and parallelism (simultaneous execution on multiple cores).",
+            "tokens": 28
+          }
+        ],
+        "wall_seconds": 12.200269708999997
+      },
+      {
+        "completion_tokens": 265,
+        "completion_tokens_per_second": 21.968991065567966,
+        "request_latency_seconds": [
+          11.25859887499999,
+          8.691251207999983,
+          11.891064999999998,
+          11.959213583000007,
+          12.061689082999976,
+          8.03035783300001,
+          11.631501791000005,
+          11.257605958
+        ],
+        "responses": [
+          {
+            "elapsed": 11.25859887499999,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its greatest strength and its most dangerous liability, as every allocation must be explicitly freed to avoid leaks or dangling pointers.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 8.691251207999983,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 11.891064999999998,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join algorithms.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 11.959213583000007,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          },
+          {
+            "elapsed": 12.061689082999976,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing linear algebra computations, such as solving linear systems, eigenvalue problems, and least-squares problems, with finite precision arithmetic.",
+            "tokens": 36
+          },
+          {
+            "elapsed": 8.03035783300001,
+            "finish": "stop",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across a network, ensuring interoperability between different devices and software.",
+            "tokens": 32
+          },
+          {
+            "elapsed": 11.631501791000005,
+            "finish": "stop",
+            "text": "1. Start by understanding the target architecture's instruction set and memory model, as this dictates which optimizations are legal and profitable.",
+            "tokens": 26
+          },
+          {
+            "elapsed": 11.257605958,
+            "finish": "stop",
+            "text": "1. Start by understanding the fundamental difference between concurrency (interleaving tasks) and parallelism (simultaneous execution on multiple cores).",
+            "tokens": 28
+          }
+        ],
+        "wall_seconds": 12.062456542000007
+      }
+    ]
+  },
+  "failures": [
+    "output mismatch concurrency=1 trial=1 request=0",
+    "output mismatch concurrency=1 trial=2 request=0",
+    "output mismatch concurrency=2 trial=1 request=0",
+    "output mismatch concurrency=4 trial=1 request=2",
+    "output mismatch concurrency=4 trial=2 request=0",
+    "output mismatch concurrency=8 trial=0 request=0",
+    "output mismatch concurrency=8 trial=0 request=2",
+    "output mismatch concurrency=8 trial=2 request=0",
+    "output mismatch concurrency=8 trial=2 request=2"
+  ],
+  "max_tokens": 128,
+  "slots": 8,
+  "status": "FAIL",
+  "summary": [
+    {
+      "concurrency": 1,
+      "dspark_median_tokens_per_second": 23.44,
+      "dspark_median_wall_seconds": 1.4505,
+      "improvement_percent": -4.77,
+      "speedup": 0.9523,
+      "target_median_tokens_per_second": 24.615,
+      "target_median_wall_seconds": 1.3813
+    },
+    {
+      "concurrency": 2,
+      "dspark_median_tokens_per_second": 23.427,
+      "dspark_median_wall_seconds": 3.0734,
+      "improvement_percent": -4.55,
+      "speedup": 0.9545,
+      "target_median_tokens_per_second": 24.543,
+      "target_median_wall_seconds": 2.9337
+    },
+    {
+      "concurrency": 4,
+      "dspark_median_tokens_per_second": 23.376,
+      "dspark_median_wall_seconds": 6.1174,
+      "improvement_percent": -6.2,
+      "speedup": 0.938,
+      "target_median_tokens_per_second": 24.921,
+      "target_median_wall_seconds": 5.7382
+    },
+    {
+      "concurrency": 8,
+      "dspark_median_tokens_per_second": 21.721,
+      "dspark_median_wall_seconds": 12.2003,
+      "improvement_percent": -11.93,
+      "speedup": 0.8807,
+      "target_median_tokens_per_second": 24.663,
+      "target_median_wall_seconds": 10.7449
+    }
+  ],
+  "target": {
+    "1": [
+      {
+        "completion_tokens": 34,
+        "completion_tokens_per_second": 24.615030426259022,
+        "request_latency_seconds": [
+          1.380236042
+        ],
+        "responses": [
+          {
+            "elapsed": 1.380236042,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          }
+        ],
+        "wall_seconds": 1.381269875
+      },
+      {
+        "completion_tokens": 34,
+        "completion_tokens_per_second": 24.33697185974998,
+        "request_latency_seconds": [
+          1.3968950840000005
+        ],
+        "responses": [
+          {
+            "elapsed": 1.3968950840000005,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          }
+        ],
+        "wall_seconds": 1.3970513749999993
+      },
+      {
+        "completion_tokens": 34,
+        "completion_tokens_per_second": 24.651289975504287,
+        "request_latency_seconds": [
+          1.3790982500000002
+        ],
+        "responses": [
+          {
+            "elapsed": 1.3790982500000002,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          }
+        ],
+        "wall_seconds": 1.3792381669999996
+      }
+    ],
+    "2": [
+      {
+        "completion_tokens": 72,
+        "completion_tokens_per_second": 24.605998583617215,
+        "request_latency_seconds": [
+          2.8407732919999997,
+          2.9257919579999996
+        ],
+        "responses": [
+          {
+            "elapsed": 2.8407732919999997,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 2.9257919579999996,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          }
+        ],
+        "wall_seconds": 2.9261157499999992
+      },
+      {
+        "completion_tokens": 72,
+        "completion_tokens_per_second": 24.431906908277842,
+        "request_latency_seconds": [
+          2.8616879169999994,
+          2.9467015419999996
+        ],
+        "responses": [
+          {
+            "elapsed": 2.8616879169999994,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 2.9467015419999996,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          }
+        ],
+        "wall_seconds": 2.9469660419999997
+      },
+      {
+        "completion_tokens": 72,
+        "completion_tokens_per_second": 24.542736019098335,
+        "request_latency_seconds": [
+          2.848259875,
+          2.9333595839999997
+        ],
+        "responses": [
+          {
+            "elapsed": 2.848259875,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 2.9333595839999997,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          }
+        ],
+        "wall_seconds": 2.9336582500000006
+      }
+    ],
+    "4": [
+      {
+        "completion_tokens": 143,
+        "completion_tokens_per_second": 24.91614305656296,
+        "request_latency_seconds": [
+          5.281002833000002,
+          5.684049375000001,
+          5.738855375,
+          5.280608707999999
+        ],
+        "responses": [
+          {
+            "elapsed": 5.281002833000002,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 5.684049375000001,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.738855375,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.280608707999999,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          }
+        ],
+        "wall_seconds": 5.739251041999999
+      },
+      {
+        "completion_tokens": 143,
+        "completion_tokens_per_second": 24.920824284432452,
+        "request_latency_seconds": [
+          5.281882332999999,
+          5.683844874999998,
+          5.737777041000001,
+          5.281649041000001
+        ],
+        "responses": [
+          {
+            "elapsed": 5.281882332999999,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 5.683844874999998,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.737777041000001,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.281649041000001,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          }
+        ],
+        "wall_seconds": 5.738172958
+      },
+      {
+        "completion_tokens": 143,
+        "completion_tokens_per_second": 24.9551855519533,
+        "request_latency_seconds": [
+          5.255384499999998,
+          5.6749920419999995,
+          5.729853125000002,
+          5.615335458000004
+        ],
+        "responses": [
+          {
+            "elapsed": 5.255384499999998,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 5.6749920419999995,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.729853125000002,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 5.615335458000004,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          }
+        ],
+        "wall_seconds": 5.730271959000003
+      }
+    ],
+    "8": [
+      {
+        "completion_tokens": 265,
+        "completion_tokens_per_second": 24.77938197392767,
+        "request_latency_seconds": [
+          9.992374458,
+          10.694036458999996,
+          10.271694416999999,
+          10.578572459,
+          9.827453958,
+          10.638290875000003,
+          8.869812167,
+          10.491993958000002
+        ],
+        "responses": [
+          {
+            "elapsed": 9.992374458,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 10.694036458999996,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 10.271694416999999,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 10.578572459,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          },
+          {
+            "elapsed": 9.827453958,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing linear algebra computations, such as solving linear systems, eigenvalue problems, and least-squares problems, with finite precision arithmetic.",
+            "tokens": 36
+          },
+          {
+            "elapsed": 10.638290875000003,
+            "finish": "stop",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across a network, ensuring interoperability between different devices and software.",
+            "tokens": 32
+          },
+          {
+            "elapsed": 8.869812167,
+            "finish": "stop",
+            "text": "1. Start by understanding the target architecture's instruction set and memory model, as this dictates which optimizations are legal and profitable.",
+            "tokens": 26
+          },
+          {
+            "elapsed": 10.491993958000002,
+            "finish": "stop",
+            "text": "1. Start by understanding the fundamental difference between concurrency (interleaving tasks) and parallelism (simultaneous execution on multiple cores).",
+            "tokens": 28
+          }
+        ],
+        "wall_seconds": 10.694374875000001
+      },
+      {
+        "completion_tokens": 265,
+        "completion_tokens_per_second": 24.66277111657369,
+        "request_latency_seconds": [
+          10.463233541999998,
+          10.744611833,
+          10.576475375000001,
+          9.274427832999997,
+          10.295349875,
+          9.274211707999996,
+          9.829069333,
+          8.884431958
+        ],
+        "responses": [
+          {
+            "elapsed": 10.463233541999998,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 10.744611833,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 10.576475375000001,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 9.274427832999997,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          },
+          {
+            "elapsed": 10.295349875,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing linear algebra computations, such as solving linear systems, eigenvalue problems, and least-squares problems, with finite precision arithmetic.",
+            "tokens": 36
+          },
+          {
+            "elapsed": 9.274211707999996,
+            "finish": "stop",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across a network, ensuring interoperability between different devices and software.",
+            "tokens": 32
+          },
+          {
+            "elapsed": 9.829069333,
+            "finish": "stop",
+            "text": "1. Start by understanding the target architecture's instruction set and memory model, as this dictates which optimizations are legal and profitable.",
+            "tokens": 26
+          },
+          {
+            "elapsed": 8.884431958,
+            "finish": "stop",
+            "text": "1. Start by understanding the fundamental difference between concurrency (interleaving tasks) and parallelism (simultaneous execution on multiple cores).",
+            "tokens": 28
+          }
+        ],
+        "wall_seconds": 10.744940166999996
+      },
+      {
+        "completion_tokens": 265,
+        "completion_tokens_per_second": 24.61537861337646,
+        "request_latency_seconds": [
+          9.456263542000002,
+          10.593589334,
+          10.279116584000008,
+          10.391275291,
+          10.764918916999996,
+          10.480082749999994,
+          8.496955499999991,
+          10.278256625000004
+        ],
+        "responses": [
+          {
+            "elapsed": 9.456263542000002,
+            "finish": "stop",
+            "text": "1. Understand that C's manual memory management is both its power and its primary source of vulnerabilities, so every allocation, access, and deallocation must be deliberate.",
+            "tokens": 34
+          },
+          {
+            "elapsed": 10.593589334,
+            "finish": "stop",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, allowing sequential access to elements without loading the entire collection into memory.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 10.279116584000008,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database engine determines the most efficient execution strategy for a given query, balancing factors like table statistics, indexes, and join order.",
+            "tokens": 38
+          },
+          {
+            "elapsed": 10.391275291,
+            "finish": "stop",
+            "text": "1. Distributed systems are collections of independent computers that appear to users as a single coherent system, with the primary goal of sharing resources and coordinating actions across a network.",
+            "tokens": 33
+          },
+          {
+            "elapsed": 10.764918916999996,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing linear algebra computations, such as solving linear systems, eigenvalue problems, and least-squares problems, with finite precision arithmetic.",
+            "tokens": 36
+          },
+          {
+            "elapsed": 10.480082749999994,
+            "finish": "stop",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across a network, ensuring interoperability between different devices and software.",
+            "tokens": 32
+          },
+          {
+            "elapsed": 8.496955499999991,
+            "finish": "stop",
+            "text": "1. Start by understanding the target architecture's instruction set and memory model, as this dictates which optimizations are legal and profitable.",
+            "tokens": 26
+          },
+          {
+            "elapsed": 10.278256625000004,
+            "finish": "stop",
+            "text": "1. Start by understanding the fundamental difference between concurrency (interleaving tasks) and parallelism (simultaneous execution on multiple cores).",
+            "tokens": 28
+          }
+        ],
+        "wall_seconds": 10.765627625000008
+      }
+    ]
+  },
+  "trials": 3,
+  "variant": "sequential"
+}

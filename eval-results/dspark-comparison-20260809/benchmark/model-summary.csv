@@ -1,0 +1,4 @@
+model,observations,baseline_tps_mean,dspark_tps_mean,paired_speedup_mean_percent,paired_speedup_median_percent,paired_speedup_geomean_percent,faster_observations,exact_output_pairs,verifier_errors,accepted_draft_total_benchmark,proposed_total_benchmark,net_saved_ms_total_benchmark,quality_gate_pass,speed_gate_pass,default_gate_pass
+preview-q4,15,35.660000000000004,36.63133333333334,2.7302758078701834,-0.13838915029062981,2.49115944296856,7,25,0,258,354,646.777,True,False,False
+preview-imatrix,15,35.593333333333334,35.312666666666665,-0.8274166166332112,-3.522118906734295,-1.5505435404786994,6,25,0,219,312,507.07,True,False,False
+model-0731,15,35.68,36.330666666666666,1.818876338936007,3.5744441317196562,1.698681212058184,9,25,0,270,330,837.911,True,False,False

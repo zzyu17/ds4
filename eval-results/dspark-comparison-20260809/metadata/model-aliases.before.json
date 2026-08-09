@@ -1,0 +1,19 @@
+{
+  "model-aliases": [
+    {
+      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2.gguf",
+      "cache": "deepseek-v4-flash-q4",
+      "alias": ["flash-q4", "deepseek-v4-flash-q4"]
+    },
+    {
+      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix.gguf",
+      "cache": "deepseek-v4-flash-q4-imatrix",
+      "alias": ["flash-q4-imatrix", "deepseek-v4-flash-q4-imatrix"]
+    },
+    {
+      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix-0731/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix-0731.gguf",
+      "cache": "deepseek-v4-flash-q4-imatrix-0731",
+      "alias": ["flash-q4-imatrix-0731", "deepseek-v4-flash-q4-imatrix-0731"]
+    }
+  ]
+}

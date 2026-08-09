@@ -1,0 +1,31 @@
+12245 ./ds4-server -m /Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix-0731/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix-0731.gguf --port 17353 --host 0.0.0.0 --ctx 1000000 --kv-disk-dir /Users/bobo/.ollama/kv-cache/deepseek-v4-flash-q4-imatrix-0731 --kv-disk-space-mb 1048576 --kv-cache-cold-max-tokens 100000 --kv-cache-continued-interval-tokens 4096
+38249 zsh -c export LC_ALL=C LANG=C
+set -e
+repo=/Users/bobo/.ollama/ds4
+results=$repo/eval-results/dspark-comparison-20260809
+cd "$repo"
+mkdir -p "$results/metadata" "$results/compatibility" "$results/benchmark/raw"
+git status --short --branch > "$results/metadata/git-status-before.txt"
+git log -1 --format="%H%n%ad%n%s" --date=iso-strict > "$results/metadata/git-commit.txt"
+pgrep -alf "[d]s4-server" > "$results/metadata/server-before.txt"
+{
+  uname -a
+  sw_vers
+  sysctl -n hw.model
+  sysctl -n hw.memsize
+  sysctl -n hw.ncpu
+  df -h /Users/bobo/.ollama
+  command -v python3
+  python3 --version
+} > "$results/metadata/system.txt" 2>&1
+/usr/bin/openssl dgst -sha256   /Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts/*.gguf   /Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix/*.gguf   /Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix-0731/*.gguf   /Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-DSpark/*.gguf   > "$results/metadata/checksums.sha256"
+cp bin/ds4-server-start "$results/metadata/ds4-server-start.before"
+cp bin/model-aliases.json "$results/metadata/model-aliases.before.json"
+bin/ds4-server-stop > "$results/metadata/server-stop.log" 2>&1
+if pgrep -x ds4-server >/dev/null; then
+  echo "ds4-server still running" >&2
+  exit 20
+fi
+make -j8 > "$results/metadata/build.log" 2>&1
+tail -n 20 "$results/metadata/build.log"
+echo "baseline-capture-stop-build complete"

@@ -1,0 +1,1 @@
+{"id":"cmpl-1","object":"text_completion","created":1786260727,"model":"deepseek-v4-flash","choices":[{"text":"int add(int a, int b) {\n    return a + b;\n}","index":0,"finish_reason":"stop"}],"usage":{"prompt_tokens":23,"completion_tokens":16,"total_tokens":39,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":23}}}

@@ -1,0 +1,11 @@
+{
+  "completion_tokens": 48,
+  "completion_tokens_per_second": 28.0,
+  "failures": [],
+  "proposed": 42,
+  "requests": 2,
+  "stats_lines": 2,
+  "status": "PASS",
+  "verifier_errors": 0,
+  "wall_seconds": 1.714
+}

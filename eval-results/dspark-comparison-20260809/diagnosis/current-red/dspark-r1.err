@@ -1,0 +1,15 @@
+ds4: DSpark support model detected: /Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-DSpark/DeepSeek-V4-Flash-DSpark-support.gguf (stages=3 block=5 markov_rank=256 tensors=81 missing=0 invalid=0 metadata_errors=0); use --dspark to enable experimental runtime decode
+ds4: Metal device Apple M3 Ultra, 512.00 GiB RAM
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=off
+ds4: Metal model views created in 3.592 ms, residency requested in 1884.078 ms, warmup 11.020 ms (mapped 157001.67 MiB from offset 5.09 MiB)
+ds4: Metal mapped mmaped model as 1 overlapping shared buffers
+ds4: Metal model views created in 0.168 ms, residency requested in 3069.269 ms, warmup 10.060 ms (mapped 5711.67 MiB from offset 0.01 MiB)
+ds4: Metal mapped mmaped model as 2 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.61 GiB (raw 0.36 + compressed 0.25) + buffers 0.25 GiB + resident model 153.32 GiB = 154.18 GiB planned
+ds4: memory detail: ctx=32768 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=8194 backend=metal
+ds4: memory: KV 0.61 GiB (raw 0.36 + compressed 0.25) + buffers 0.25 GiB = 0.86 GiB context
+ds4: memory detail: ctx=32768 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=8194 backend=metal
+ds4: DSpark target-hidden capture enabled: layers=40,41,42
+ds4: prefill: 56.94 t/s, generation: 41.28 t/s
+ds4: DSpark stats cycles=3 first_tokens=3 proposed=15 accepted_draft=14 accept_rate=93.33% avg_accept=4.667 full=2 partial=1 miss_first=0 no_draft=0 no_room=0 invalid=0 scheduler_skips=0 tail_skips=0 verifier_unavailable=0 errors=0 time_ms propose=32.597 prop_stage0=0.000 prop_setup=1.129 prop_cache=5.837 prop_chain=14.695 prop_hidden=0.000 prop_conf0=0.189 prop_logits=5.784 prop_markov=4.944 prop_confidence=0.000 snapshot=2.107 verify=262.231 verify_upload=0.204 verify_layer=262.014 verify_head=0.000 verify_read=0.085 verify_fused_head=3 replay=0.000 spec_total=265.096 target=89.551 saved=417.278 net_saved=119.585 draft_len_hist=5:3 accepted_len_hist=4:1,5:2

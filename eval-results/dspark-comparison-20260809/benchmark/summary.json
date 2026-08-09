@@ -1,0 +1,90 @@
+{
+  "all_defaults_qualified": false,
+  "method": {
+    "decoding": "greedy --temp 0 --nothink",
+    "prompts": [
+      "hello",
+      "redis",
+      "math",
+      "python_reverse",
+      "c_add"
+    ],
+    "quality_gate": "25/25 exact output pairs and zero verifier errors per model",
+    "repetitions": 3,
+    "speed_gate": "median paired generation throughput improvement >= 5%",
+    "tokens": 64
+  },
+  "models": [
+    {
+      "accepted_draft_total_benchmark": 258,
+      "baseline_tps_mean": 35.660000000000004,
+      "default_gate_pass": false,
+      "dspark_tps_mean": 36.63133333333334,
+      "exact_output_pairs": 25,
+      "faster_observations": 7,
+      "model": "preview-q4",
+      "net_saved_ms_total_benchmark": 646.777,
+      "observations": 15,
+      "paired_speedup_geomean_percent": 2.49115944296856,
+      "paired_speedup_mean_percent": 2.7302758078701834,
+      "paired_speedup_median_percent": -0.13838915029062981,
+      "proposed_total_benchmark": 354,
+      "quality_gate_pass": true,
+      "speed_gate_pass": false,
+      "verifier_errors": 0
+    },
+    {
+      "accepted_draft_total_benchmark": 219,
+      "baseline_tps_mean": 35.593333333333334,
+      "default_gate_pass": false,
+      "dspark_tps_mean": 35.312666666666665,
+      "exact_output_pairs": 25,
+      "faster_observations": 6,
+      "model": "preview-imatrix",
+      "net_saved_ms_total_benchmark": 507.07,
+      "observations": 15,
+      "paired_speedup_geomean_percent": -1.5505435404786994,
+      "paired_speedup_mean_percent": -0.8274166166332112,
+      "paired_speedup_median_percent": -3.522118906734295,
+      "proposed_total_benchmark": 312,
+      "quality_gate_pass": true,
+      "speed_gate_pass": false,
+      "verifier_errors": 0
+    },
+    {
+      "accepted_draft_total_benchmark": 270,
+      "baseline_tps_mean": 35.68,
+      "default_gate_pass": false,
+      "dspark_tps_mean": 36.330666666666666,
+      "exact_output_pairs": 25,
+      "faster_observations": 9,
+      "model": "model-0731",
+      "net_saved_ms_total_benchmark": 837.911,
+      "observations": 15,
+      "paired_speedup_geomean_percent": 1.698681212058184,
+      "paired_speedup_mean_percent": 1.818876338936007,
+      "paired_speedup_median_percent": 3.5744441317196562,
+      "proposed_total_benchmark": 330,
+      "quality_gate_pass": true,
+      "speed_gate_pass": false,
+      "verifier_errors": 0
+    }
+  ],
+  "quality": {
+    "model-0731": {
+      "exact_output_pairs": 25,
+      "verifier_errors": 0,
+      "verify_depth_log": "model-0731-verify-depth.log"
+    },
+    "preview-imatrix": {
+      "exact_output_pairs": 25,
+      "verifier_errors": 0,
+      "verify_depth_log": "preview-imatrix-verify-depth.log"
+    },
+    "preview-q4": {
+      "exact_output_pairs": 25,
+      "verifier_errors": 0,
+      "verify_depth_log": "preview-q4-verify-depth.log"
+    }
+  }
+}

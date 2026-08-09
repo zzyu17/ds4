@@ -1,0 +1,25 @@
+{
+  "choices": [
+    {
+      "finish_reason": "length",
+      "index": 0,
+      "message": {
+        "content": "1.  The user requested a reply",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1786257799,
+  "id": "chatcmpl-1",
+  "model": "deepseek-v4-flash",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 8,
+    "prompt_tokens": 9,
+    "prompt_tokens_details": {
+      "cache_write_tokens": 9,
+      "cached_tokens": 0
+    },
+    "total_tokens": 17
+  }
+}

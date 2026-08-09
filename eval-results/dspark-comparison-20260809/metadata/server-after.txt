@@ -1,0 +1,31 @@
+42122 zsh -c export LC_ALL=C LANG=C
+set -e
+repo=/Users/bobo/.ollama/ds4
+results=$repo/eval-results/dspark-comparison-20260809
+cd "$repo"
+bin/ds4-server-start > "$results/metadata/server-restore.log" 2>&1
+attempt=0
+while [ "$attempt" -lt 60 ]
+do
+  if lsof -nP -iTCP:17353 -sTCP:LISTEN >/dev/null 2>&1
+  then
+    break
+  fi
+  sleep 1
+  attempt=$((attempt + 1))
+done
+if ! lsof -nP -iTCP:17353 -sTCP:LISTEN >/dev/null 2>&1
+then
+  echo "restored server did not listen" >&2
+  exit 30
+fi
+pgrep -alf "[d]s4-server" > "$results/metadata/server-after.txt"
+curl -fsS http://127.0.0.1:17353/v1/models > "$results/metadata/v1-models.json"
+curl -fsS   -H "Content-Type: application/json"   -d "{"model":"deepseek-v4-flash","messages":[{"role":"user","content":"Reply with only OK."}],"temperature":0,"max_tokens":8,"stream":false}"   http://127.0.0.1:17353/v1/chat/completions   > "$results/metadata/server-smoke-response.json"
+python3 -m json.tool "$results/metadata/v1-models.json" >/dev/null
+python3 -m json.tool "$results/metadata/server-smoke-response.json" >/dev/null
+cp /Users/bobo/.ollama/logs/ds4-server.log "$results/metadata/server-after.log"
+cat "$results/metadata/server-after.txt"
+python3 -c "import json; p=json.load(open(\"$results/metadata/server-smoke-response.json\")); print(p[\"choices\"][0][\"message\"][\"content\"])"
+
+42143 ./ds4-server -m /Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix-0731/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix-0731.gguf --port 17353 --host 0.0.0.0 --ctx 1000000 --kv-disk-dir /Users/bobo/.ollama/kv-cache/deepseek-v4-flash-q4-imatrix-0731 --kv-disk-space-mb 1048576 --kv-cache-cold-max-tokens 100000 --kv-cache-continued-interval-tokens 4096

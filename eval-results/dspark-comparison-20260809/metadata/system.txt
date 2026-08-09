@@ -1,0 +1,11 @@
+Darwin Bos-Mac-Studio.local 24.3.0 Darwin Kernel Version 24.3.0: Thu Jan  2 20:31:43 PST 2025; root:xnu-11215.81.4~4/RELEASE_ARM64_T6031 arm64
+ProductName:		macOS
+ProductVersion:		15.3
+BuildVersion:		24D2059
+Mac15,14
+549755813888
+32
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   3.6Ti   2.3Ti   1.3Ti    64%    3.3M   14G    0%   /System/Volumes/Data
+/usr/bin/python3
+Python 3.9.6

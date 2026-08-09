@@ -1,0 +1,14 @@
+{
+  "completion_tokens": 48,
+  "completion_tokens_per_second": 25.42,
+  "failures": [
+    "missing DSpark stats: got=0 expected>=2",
+    "batched DSpark made zero proposals"
+  ],
+  "proposed": 0,
+  "requests": 2,
+  "stats_lines": 0,
+  "status": "FAIL",
+  "verifier_errors": 0,
+  "wall_seconds": 1.888
+}

@@ -1,0 +1,13 @@
+completed_at=2026-08-09T14:45:31+0800
+commit=1021670cf199248f1c4dac509c48bbdc5a09bc8d
+tracked_worktree_clean=true
+expected_untracked_results_only=true
+compatibility_run_complete=true
+quality_gate_all_models=true
+speed_gate_all_models=false
+defaults_changed=false
+launcher_matches_before=true
+aliases_match_before=true
+server_listening=true
+server_dspark_enabled=false
+server_process=./ds4-server -m /Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix-0731/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix-0731.gguf --port 17353 --host 0.0.0.0 --ctx 1000000 --kv-disk-dir /Users/bobo/.ollama/kv-cache/deepseek-v4-flash-q4-imatrix-0731 --kv-disk-space-mb 1048576 --kv-cache-cold-max-tokens 100000 --kv-cache-continued-interval-tokens 4096

@@ -1,0 +1,636 @@
+{
+  "dspark": {
+    "1": [
+      {
+        "completion_tokens": 96,
+        "completion_tokens_per_second": 29.84492646159599,
+        "request_latency_seconds": [
+          3.216395625000004
+        ],
+        "responses": [
+          {
+            "elapsed": 3.216395625000004,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          }
+        ],
+        "wall_seconds": 3.2166271250000023
+      },
+      {
+        "completion_tokens": 96,
+        "completion_tokens_per_second": 29.480700908270492,
+        "request_latency_seconds": [
+          3.2561959580000064
+        ],
+        "responses": [
+          {
+            "elapsed": 3.2561959580000064,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          }
+        ],
+        "wall_seconds": 3.2563676249999958
+      }
+    ],
+    "2": [
+      {
+        "completion_tokens": 192,
+        "completion_tokens_per_second": 29.073269105131644,
+        "request_latency_seconds": [
+          6.603836999999999,
+          6.461527458000006
+        ],
+        "responses": [
+          {
+            "elapsed": 6.603836999999999,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle out-of-memory conditions gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set freed pointers",
+            "tokens": 96
+          },
+          {
+            "elapsed": 6.461527458000006,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in loops and comprehensions.\n3. The `__next__()` method must return the next item from the sequence, and raise a `StopIteration` exception when there are no more items.\n4",
+            "tokens": 96
+          }
+        ],
+        "wall_seconds": 6.604004499999988
+      },
+      {
+        "completion_tokens": 192,
+        "completion_tokens_per_second": 29.22097563815301,
+        "request_latency_seconds": [
+          6.570444750000007,
+          5.692659583999998
+        ],
+        "responses": [
+          {
+            "elapsed": 6.570444750000007,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 5.692659583999998,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          }
+        ],
+        "wall_seconds": 6.570622499999999
+      }
+    ],
+    "4": [
+      {
+        "completion_tokens": 285,
+        "completion_tokens_per_second": 27.798024932537835,
+        "request_latency_seconds": [
+          10.252335208999995,
+          10.109527040999993,
+          6.685947166000005,
+          8.975333833000008
+        ],
+        "responses": [
+          {
+            "elapsed": 10.252335208999995,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 10.109527040999993,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          },
+          {
+            "elapsed": 6.685947166000005,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database management system (DBMS) determines the most efficient way to execute a given query, translating declarative SQL into a series of physical operations.",
+            "tokens": 42
+          },
+          {
+            "elapsed": 8.975333833000008,
+            "finish": "stop",
+            "text": "1. **Start with the CAP theorem**: Understand that in a distributed system, you can only guarantee two out of three properties\u2014Consistency, Availability, and Partition Tolerance\u2014at any given time, which forms the foundational trade-off for all architectural decisions.",
+            "tokens": 51
+          }
+        ],
+        "wall_seconds": 10.25252695799999
+      },
+      {
+        "completion_tokens": 285,
+        "completion_tokens_per_second": 27.557288914400036,
+        "request_latency_seconds": [
+          10.341909541000007,
+          10.284422541999987,
+          6.760697708999999,
+          8.46827125
+        ],
+        "responses": [
+          {
+            "elapsed": 10.341909541000007,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 10.284422541999987,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          },
+          {
+            "elapsed": 6.760697708999999,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database management system (DBMS) determines the most efficient way to execute a given query, translating declarative SQL into a series of physical operations.",
+            "tokens": 42
+          },
+          {
+            "elapsed": 8.46827125,
+            "finish": "stop",
+            "text": "1. **Start with the CAP theorem**: Understand that in a distributed system, you can only guarantee two out of three properties\u2014Consistency, Availability, and Partition Tolerance\u2014at any given time, which forms the foundational trade-off for all architectural decisions.",
+            "tokens": 51
+          }
+        ],
+        "wall_seconds": 10.34209137500001
+      }
+    ],
+    "8": [
+      {
+        "completion_tokens": 498,
+        "completion_tokens_per_second": 26.03370516150992,
+        "request_latency_seconds": [
+          18.87650479199999,
+          18.337903249999997,
+          11.722969416999987,
+          15.11774783300001,
+          14.560544833000009,
+          19.128094667,
+          12.674353416000002,
+          13.588628749999998
+        ],
+        "responses": [
+          {
+            "elapsed": 18.87650479199999,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 18.337903249999997,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          },
+          {
+            "elapsed": 11.722969416999987,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database management system (DBMS) determines the most efficient way to execute a given query, translating declarative SQL into a series of physical operations.",
+            "tokens": 42
+          },
+          {
+            "elapsed": 15.11774783300001,
+            "finish": "stop",
+            "text": "1. **Start with the CAP theorem**: Understand that in a distributed system, you can only guarantee two out of three properties\u2014Consistency, Availability, and Partition Tolerance\u2014at any given time, which forms the foundational trade-off for all architectural decisions.",
+            "tokens": 51
+          },
+          {
+            "elapsed": 14.560544833000009,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing matrix operations, solving linear systems, and computing eigenvalues, with a focus on stability, efficiency, and accuracy in finite-precision arithmetic.",
+            "tokens": 39
+          },
+          {
+            "elapsed": 19.128094667,
+            "finish": "length",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across network devices, ensuring consistent communication.\n2. The Open Systems Interconnection (OSI) model provides a conceptual framework with seven layers, from physical hardware to application software, to standardize network functions.\n3. The Transmission Control Protocol (TCP) is a connection-oriented protocol that guarantees reliable, ordered delivery of data through error checking and retransmission.\n4. The Internet Protocol",
+            "tokens": 96
+          },
+          {
+            "elapsed": 12.674353416000002,
+            "finish": "stop",
+            "text": "1. **Dead Code Elimination (DCE)** removes code that computes values never used later, reducing program size and execution time without affecting program semantics.",
+            "tokens": 30
+          },
+          {
+            "elapsed": 13.588628749999998,
+            "finish": "stop",
+            "text": "1. **Understanding Concurrency vs. Parallelism**: Concurrency is about dealing with multiple tasks at once (interleaving their execution), while parallelism is about doing multiple tasks at the exact same time (requiring multiple cores or processors).",
+            "tokens": 48
+          }
+        ],
+        "wall_seconds": 19.129048167000008
+      },
+      {
+        "completion_tokens": 495,
+        "completion_tokens_per_second": 26.016786779798426,
+        "request_latency_seconds": [
+          18.85742645900001,
+          17.994652791999982,
+          12.754047374999999,
+          17.733754750000003,
+          14.67419137500002,
+          19.02538345800002,
+          10.914809583999983,
+          12.75331541600002
+        ],
+        "responses": [
+          {
+            "elapsed": 18.85742645900001,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 17.994652791999982,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          },
+          {
+            "elapsed": 12.754047374999999,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database management system (DBMS) determines the most efficient way to execute a given query, translating declarative SQL into a series of physical operations.",
+            "tokens": 42
+          },
+          {
+            "elapsed": 17.733754750000003,
+            "finish": "stop",
+            "text": "1. **Start with the CAP theorem**: Understand that in a distributed system, you can only guarantee two out of three properties\u2014Consistency, Availability, and Partition Tolerance\u2014at any given time, which forms the foundational trade-off for all architectural decisions.",
+            "tokens": 51
+          },
+          {
+            "elapsed": 14.67419137500002,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing matrix operations, solving linear systems, and computing eigenvalues, with a focus on stability, efficiency, and accuracy in finite-precision arithmetic.",
+            "tokens": 39
+          },
+          {
+            "elapsed": 19.02538345800002,
+            "finish": "length",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across network devices, ensuring consistent communication.\n2. The Open Systems Interconnection (OSI) model provides a seven-layer conceptual framework for understanding network protocol interactions, from physical hardware to application software.\n3. Layer 1, the Physical layer, handles the raw bitstream transmission over physical media like copper cables, fiber optics, or wireless radio frequencies.\n4. Layer 2,",
+            "tokens": 96
+          },
+          {
+            "elapsed": 10.914809583999983,
+            "finish": "stop",
+            "text": "1. **Dead Code Elimination (DCE)** removes code that computes values never used later, reducing program size and execution time without affecting program semantics.",
+            "tokens": 30
+          },
+          {
+            "elapsed": 12.75331541600002,
+            "finish": "stop",
+            "text": "1. **Understanding Concurrency vs. Parallelism**: Concurrency is about dealing with multiple tasks at once (interleaving their execution), while parallelism is about doing multiple tasks at the exact same time (using multiple cores).",
+            "tokens": 45
+          }
+        ],
+        "wall_seconds": 19.026177375000003
+      }
+    ]
+  },
+  "failures": [
+    "output mismatch concurrency=2 trial=0 request=0",
+    "output mismatch concurrency=2 trial=0 request=1",
+    "output mismatch concurrency=8 trial=0 request=5",
+    "output mismatch concurrency=8 trial=1 request=5",
+    "output mismatch concurrency=8 trial=1 request=7"
+  ],
+  "max_tokens": 96,
+  "slots": 8,
+  "status": "FAIL",
+  "summary": [
+    {
+      "concurrency": 1,
+      "dspark_median_tokens_per_second": 29.663,
+      "dspark_median_wall_seconds": 3.2365,
+      "improvement_percent": -2.95,
+      "speedup": 0.9705,
+      "target_median_tokens_per_second": 30.566,
+      "target_median_wall_seconds": 3.1409
+    },
+    {
+      "concurrency": 2,
+      "dspark_median_tokens_per_second": 29.147,
+      "dspark_median_wall_seconds": 6.5873,
+      "improvement_percent": -2.39,
+      "speedup": 0.9761,
+      "target_median_tokens_per_second": 29.86,
+      "target_median_wall_seconds": 6.4301
+    },
+    {
+      "concurrency": 4,
+      "dspark_median_tokens_per_second": 27.678,
+      "dspark_median_wall_seconds": 10.2973,
+      "improvement_percent": -4.91,
+      "speedup": 0.9509,
+      "target_median_tokens_per_second": 29.108,
+      "target_median_wall_seconds": 9.7912
+    },
+    {
+      "concurrency": 8,
+      "dspark_median_tokens_per_second": 26.025,
+      "dspark_median_wall_seconds": 19.0776,
+      "improvement_percent": -9.97,
+      "speedup": 0.9003,
+      "target_median_tokens_per_second": 28.907,
+      "target_median_wall_seconds": 17.2275
+    }
+  ],
+  "target": {
+    "1": [
+      {
+        "completion_tokens": 96,
+        "completion_tokens_per_second": 30.764153530242524,
+        "request_latency_seconds": [
+          3.119464459
+        ],
+        "responses": [
+          {
+            "elapsed": 3.119464459,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          }
+        ],
+        "wall_seconds": 3.120514917
+      },
+      {
+        "completion_tokens": 96,
+        "completion_tokens_per_second": 30.367925611063466,
+        "request_latency_seconds": [
+          3.161038959
+        ],
+        "responses": [
+          {
+            "elapsed": 3.161038959,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          }
+        ],
+        "wall_seconds": 3.1612300830000004
+      }
+    ],
+    "2": [
+      {
+        "completion_tokens": 192,
+        "completion_tokens_per_second": 29.77492425276716,
+        "request_latency_seconds": [
+          6.448228083,
+          6.418087625
+        ],
+        "responses": [
+          {
+            "elapsed": 6.448228083,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 6.418087625,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          }
+        ],
+        "wall_seconds": 6.448379125000001
+      },
+      {
+        "completion_tokens": 192,
+        "completion_tokens_per_second": 29.944479309271326,
+        "request_latency_seconds": [
+          6.4116926670000005,
+          6.381983375000001
+        ],
+        "responses": [
+          {
+            "elapsed": 6.4116926670000005,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 6.381983375000001,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          }
+        ],
+        "wall_seconds": 6.411866374999999
+      }
+    ],
+    "4": [
+      {
+        "completion_tokens": 285,
+        "completion_tokens_per_second": 29.167593718548886,
+        "request_latency_seconds": [
+          9.770917208,
+          9.627991709,
+          6.255374332999999,
+          7.186993416
+        ],
+        "responses": [
+          {
+            "elapsed": 9.770917208,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 9.627991709,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          },
+          {
+            "elapsed": 6.255374332999999,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database management system (DBMS) determines the most efficient way to execute a given query, translating declarative SQL into a series of physical operations.",
+            "tokens": 42
+          },
+          {
+            "elapsed": 7.186993416,
+            "finish": "stop",
+            "text": "1. **Start with the CAP theorem**: Understand that in a distributed system, you can only guarantee two out of three properties\u2014Consistency, Availability, and Partition Tolerance\u2014at any given time, which forms the foundational trade-off for all architectural decisions.",
+            "tokens": 51
+          }
+        ],
+        "wall_seconds": 9.771118000000001
+      },
+      {
+        "completion_tokens": 285,
+        "completion_tokens_per_second": 29.04800945762257,
+        "request_latency_seconds": [
+          9.754221792,
+          9.811021666000002,
+          6.174409832999999,
+          7.017450790999998
+        ],
+        "responses": [
+          {
+            "elapsed": 9.754221792,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 9.811021666000002,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          },
+          {
+            "elapsed": 6.174409832999999,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database management system (DBMS) determines the most efficient way to execute a given query, translating declarative SQL into a series of physical operations.",
+            "tokens": 42
+          },
+          {
+            "elapsed": 7.017450790999998,
+            "finish": "stop",
+            "text": "1. **Start with the CAP theorem**: Understand that in a distributed system, you can only guarantee two out of three properties\u2014Consistency, Availability, and Partition Tolerance\u2014at any given time, which forms the foundational trade-off for all architectural decisions.",
+            "tokens": 51
+          }
+        ],
+        "wall_seconds": 9.811343541999996
+      }
+    ],
+    "8": [
+      {
+        "completion_tokens": 498,
+        "completion_tokens_per_second": 28.902950358541386,
+        "request_latency_seconds": [
+          17.229856833,
+          16.714887708,
+          13.198167666000003,
+          12.788217375000002,
+          11.138215875,
+          17.119316458,
+          9.798920207999998,
+          13.421344666000003
+        ],
+        "responses": [
+          {
+            "elapsed": 17.229856833,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 16.714887708,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          },
+          {
+            "elapsed": 13.198167666000003,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database management system (DBMS) determines the most efficient way to execute a given query, translating declarative SQL into a series of physical operations.",
+            "tokens": 42
+          },
+          {
+            "elapsed": 12.788217375000002,
+            "finish": "stop",
+            "text": "1. **Start with the CAP theorem**: Understand that in a distributed system, you can only guarantee two out of three properties\u2014Consistency, Availability, and Partition Tolerance\u2014at any given time, which forms the foundational trade-off for all architectural decisions.",
+            "tokens": 51
+          },
+          {
+            "elapsed": 11.138215875,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing matrix operations, solving linear systems, and computing eigenvalues, with a focus on stability, efficiency, and accuracy in finite-precision arithmetic.",
+            "tokens": 39
+          },
+          {
+            "elapsed": 17.119316458,
+            "finish": "length",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across a network, ensuring interoperability between different devices and systems.\n2. The Open Systems Interconnection (OSI) model provides a conceptual framework with seven layers, from the Physical layer (Layer 1) to the Application layer (Layer 7), to help understand network communication.\n3. The Transmission Control Protocol (TCP) operates at the Transport layer (Layer 4) and",
+            "tokens": 96
+          },
+          {
+            "elapsed": 9.798920207999998,
+            "finish": "stop",
+            "text": "1. **Dead Code Elimination (DCE)** removes code that computes values never used later, reducing program size and execution time without affecting program semantics.",
+            "tokens": 30
+          },
+          {
+            "elapsed": 13.421344666000003,
+            "finish": "stop",
+            "text": "1. **Understanding Concurrency vs. Parallelism**: Concurrency is about dealing with multiple tasks at once (interleaving their execution), while parallelism is about doing multiple tasks at the exact same time (requiring multiple cores or processors).",
+            "tokens": 48
+          }
+        ],
+        "wall_seconds": 17.230074916999996
+      },
+      {
+        "completion_tokens": 498,
+        "completion_tokens_per_second": 28.911460158981242,
+        "request_latency_seconds": [
+          17.113307208000002,
+          17.22463391699999,
+          12.741880082999998,
+          12.741674625000002,
+          12.879912958000006,
+          16.881511749999994,
+          8.902235665999996,
+          12.988473583000008
+        ],
+        "responses": [
+          {
+            "elapsed": 17.113307208000002,
+            "finish": "length",
+            "text": "1. Always initialize pointers to NULL or a valid address immediately upon declaration to prevent undefined behavior from dangling or uninitialized pointers.\n2. Use `malloc` and `calloc` with caution, and always check their return value for NULL to handle memory allocation failures gracefully.\n3. Pair every `malloc` or `calloc` with a corresponding `free` to avoid memory leaks, and ensure the pointer is not used after being freed.\n4. Set a pointer to NULL",
+            "tokens": 96
+          },
+          {
+            "elapsed": 17.22463391699999,
+            "finish": "length",
+            "text": "1. An iterator in Python is any object that implements the `__iter__()` and `__next__()` methods, collectively known as the iterator protocol.\n2. The `__iter__()` method should return the iterator object itself, typically `self`, and is used in `for` loops and other iteration contexts.\n3. The `__next__()` method must return the next item from the container, and raise a `StopIteration` exception when there are no",
+            "tokens": 96
+          },
+          {
+            "elapsed": 12.741880082999998,
+            "finish": "stop",
+            "text": "1. Understand that SQL query planning is the process by which a database management system (DBMS) determines the most efficient way to execute a given query, translating declarative SQL into a series of physical operations.",
+            "tokens": 42
+          },
+          {
+            "elapsed": 12.741674625000002,
+            "finish": "stop",
+            "text": "1. **Start with the CAP theorem**: Understand that in a distributed system, you can only guarantee two out of three properties\u2014Consistency, Availability, and Partition Tolerance\u2014at any given time, which forms the foundational trade-off for all architectural decisions.",
+            "tokens": 51
+          },
+          {
+            "elapsed": 12.879912958000006,
+            "finish": "stop",
+            "text": "1. Numerical linear algebra is the study of algorithms for performing matrix operations, solving linear systems, and computing eigenvalues, with a focus on stability, efficiency, and accuracy in finite-precision arithmetic.",
+            "tokens": 39
+          },
+          {
+            "elapsed": 16.881511749999994,
+            "finish": "length",
+            "text": "1. Network protocols are standardized sets of rules that define how data is formatted, transmitted, and received across a network, ensuring interoperability between different devices and systems.\n2. The Open Systems Interconnection (OSI) model provides a conceptual framework with seven layers, from the Physical layer (Layer 1) to the Application layer (Layer 7), to help understand network communication.\n3. The Transmission Control Protocol (TCP) operates at the Transport layer (Layer 4) and",
+            "tokens": 96
+          },
+          {
+            "elapsed": 8.902235665999996,
+            "finish": "stop",
+            "text": "1. **Dead Code Elimination (DCE)** removes code that computes values never used later, reducing program size and execution time without affecting program semantics.",
+            "tokens": 30
+          },
+          {
+            "elapsed": 12.988473583000008,
+            "finish": "stop",
+            "text": "1. **Understanding Concurrency vs. Parallelism**: Concurrency is about dealing with multiple tasks at once (interleaving their execution), while parallelism is about doing multiple tasks at the exact same time (requiring multiple cores or processors).",
+            "tokens": 48
+          }
+        ],
+        "wall_seconds": 17.225003416000007
+      }
+    ]
+  },
+  "trials": 2,
+  "variant": "sequential"
+}

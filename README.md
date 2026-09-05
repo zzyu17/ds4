@@ -396,6 +396,11 @@ Run it with the normal sampling defaults:
 ```
 
 `--mtp-model` supplies the support GGUF, while `--dspark` selects the DSpark runtime.
+Measured on a MacBook Pro M5 Max with the Q2 Flash model fully resident
+(README prose prompt, 128-token context): plain decode 46.5 t/s, DSpark
+36-44 t/s depending on the confidence threshold (30-55% of draft tokens
+accepted; every verified draft row re-streams its routed experts, about a
+third of a token's cost). Expect gains only on highly predictable text.
 The default confidence threshold is `0.6` on Metal and `0.7` on CUDA and ROCm.
 It prunes suffixes that are unlikely to repay their verification cost.
 `--dspark-confidence 0` forces fixed five-token blocks and is intended for
@@ -888,6 +893,78 @@ token-by-token prefill that exactly matches the single-machine arithmetic).
 The split graph is deterministic, but its changed floating-point reduction
 order is not generally byte-identical to single-machine execution.
 
+### Running DeepSeek V4 Flash across two 128 GB MacBooks
+
+The same mode runs DeepSeek V4 Flash (145 GB in the MXFP4 recipe, which does
+not fit one 128 GB Mac without SSD streaming). Each Mac keeps its half of the
+routed experts resident (~77 GiB) plus the replicated dense weights; the
+per-layer exchanges are 16 KB and ride as single RDMA messages.
+
+One-time setup per boot, on **both** machines (as for GLM above):
+
+```sh
+sudo sysctl iogpu.wired_limit_mb=120000
+sudo ifconfig en1 inet 10.99.0.2/30 alias     # machine A (coordinator), its Thunderbolt member interface
+sudo ifconfig en6 inet 10.99.0.1/30 alias     # machine B (worker)
+rdma_ctl status                               # "enabled" on both
+```
+
+Both machines need the same tree, the same commit, and the model at the same
+relative path. Start the worker in a terminal that stays open (an interactive
+`ssh -tt` session is fine; a detached `nohup` worker cannot reach the
+coordinator on macOS), then the coordinator; the worker retries until the
+coordinator listens. Do not probe the coordinator's port with `nc` or `curl`
+while it waits: it accepts the probe as the worker and fails.
+
+```sh
+MODEL=gguf/DeepSeek-V4-Flash-Vision-Exp-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out.gguf
+VISION=gguf/DeepSeek-V4-Flash-Vision-Encoder.gguf   # omit --vision for the text-only model
+
+# Machine B: worker.
+./ds4 -m "$MODEL" --vision "$VISION" --tensor-parallel --role worker \
+  --coordinator 10.99.0.2 9911 --transport rdma --rdma-device rdma_en6 --rdma-gid-index 1
+
+# Machine A: coordinator, interactive chat (use /read photo.png to send an image).
+./ds4 -m "$MODEL" --vision "$VISION" --tensor-parallel --role coordinator \
+  --listen 10.99.0.2 9911 --transport rdma --rdma-device rdma_en1 --rdma-gid-index 1 -c 8192
+```
+
+The text-only `DeepSeek-V4-Flash-0731-MXFP4Experts-...-chat-v2-mxfp4.gguf`
+file has the same layers and tensor types and runs identically. Other
+quantization recipes (IQ2, Q4_K experts) run too, but the fastest paths gate
+on MXFP4 experts with Q8 attention and shared-expert tensors.
+
+Measured on two M5 Max 128 GB MacBooks over Thunderbolt 5 (MXFP4 recipe,
+README prompt):
+
+| | two Macs, tensor parallel | one Mac, SSD streaming |
+|---|---|---|
+| decode, 128-token context | ~47-48 t/s | ~11 t/s |
+| decode, 2048-token context | ~48 t/s | |
+| prefill | ~250 t/s at 128 tokens, ~850 t/s at 2048 | ~10 t/s |
+| startup | ~10 s per Mac (pins its shard) | |
+| DSpark (`--dspark`) | slower than plain decode here (30-40 t/s: each draft row re-streams its experts) | |
+
+Things that cost speed on the coordinator: a remote screen-sharing session
+or an animated wallpaper (the display compositor takes GPU time from the
+decode, up to 10%), and anything else using the GPU. Benchmark with the
+screen idle. The first run after swapping roles between the two Macs can fail
+at the first prefill round with `timeout waiting for bulk RDMA round`; start
+both again.
+
+The fast paths are on by default; environment variables exist to opt out
+for diagnosis (set them on both machines): `DS4_TP_DISABLE_POLL_GATES=1`
+(shared-event gates instead of the poll gates), `DS4_TP_DISABLE_GATE_PREFETCH=1`,
+`DS4_TP_STATIC_SHARED_SPLIT=1` (fixed shared-expert halves instead of the
+per-token GPU-decided split), `DS4_TP_DISABLE_FLAG_FOLD=1`,
+`DS4_METAL_DISABLE_KV_NORM_DEFER=1`, `DS4_METAL_DISABLE_M5_ROUTER_PROJECT_SELECT_FUSE=1`,
+`DS4_TP_DISABLE_RDMA_WARMUP=1`, `DS4_METAL_DISABLE_MXFP4_MM_ID_MPP=1` (simdgroup
+instead of TensorOps routed-expert prefill GEMMs), `DS4_METAL_DISABLE_QUEUE_KEEPALIVE=1`
+(no idle keepalive on the Metal command queue: the first command buffer after
+~3 s of GPU idleness then starts 600-800 ms late). `DS4_TP_GATE_PROFILE=1` prints per-gate wait
+statistics on each rank at exit; `DS4_METAL_ENCODER_TIMELINE=<file>` writes
+a per-kernel GPU timeline (`misc/tp_tools/tl_analyze.py` reads it).
+
 ## Tensor Parallelism across CUDA GPUs
 
 On a single CUDA server, `--cuda-tensor-parallel` splits DeepSeek V4 Flash
@@ -1057,24 +1134,41 @@ per-layer chunk dispatch path.
 ## Capability Evaluation
 
 `ds4-eval` is a small real-model integration benchmark. It is not a leaderboard
-runner and should not be reported as an official GPQA, SuperGPQA, AIME, or
-security benchmark score: the questions are an embedded 92-item subset chosen
-to make local regression testing useful and visually inspectable. The program
-loads the real GGUF, renders DeepSeek chat prompts, streams sampled tokens in a split-screen TUI, grades
-the final answer, and prints a per-question report with prompt tokens,
-generated tokens, pass/fail state, the model answer, and the correct answer.
+runner and its results are not official benchmark scores. The default `core`
+suite is the original 92-item set. A separate 50-item `hard` suite adds harder
+science, math, logic, and defensive code-review problems. The program loads the
+real GGUF, renders chat prompts, streams sampled tokens in a split-screen TUI,
+grades the final answer, and prints a per-question report.
 
 ```sh
 ./ds4-eval -m ds4flash.gguf --trace /tmp/ds4-eval.txt
 ```
 
-The default run uses `--tokens 16000`, thinking mode enabled, and a soft/hard
-`</think>` budget cutoff so the model has room to produce a visible answer.
+Run the short hard-suite gate before a full hard pass:
+
+```sh
+./ds4-eval -m ds4flash.gguf --suite hard-smoke
+./ds4-eval -m ds4flash.gguf --suite hard --retry-incomplete
+```
+
+Use `--suite all` for both sets. `--source`, `--domain`, and `--case-id` narrow
+the selection; `--list-cases` shows the resulting order without loading a
+model. `--validate-cases` checks IDs, keys, answer formats, and suite metadata.
+
+The core suite uses a 16,000-token generation budget. Hard cases carry smaller
+per-case budgets where appropriate; `--tokens` overrides all of them. Thinking
+mode and the soft/hard `</think>` cutoff remain enabled so the model has room to
+produce a visible answer.
 `ds4-eval` sizes the context internally from the largest selected prompt plus
 the generation budget, and refuses runs that would need more than 1M context
 tokens. Press `p` to pause, `q` to exit and print the report, Up/Down to
 inspect or select another question, and Enter to run the selected question next.
 `--plain` disables the TUI.
+
+Live runs are graded only when their last non-empty line contains `Answer:`.
+Otherwise the result is `INCOMPLETE`, not a wrong answer.
+`--retry-incomplete` repeats that case once with twice its normal budget. Old
+trace files retain their original loose regrading behavior.
 
 Use `--regrade-trace /path/to/trace.txt` to replay the current answer
 extractor and scorer against a prior `--trace` file without loading the model
@@ -1104,7 +1198,7 @@ The generated-token counts must stay aligned with the baseline:
 | 3 | `PASSED` | 666 | `70` / `70` |
 | 4 | `FAILED` | 2048 | `A` / `C` |
 
-The first 75 embedded questions are interleaved as 25 GPQA Diamond, 25 audited
+The first 75 core questions are interleaved as 25 GPQA Diamond, 25 audited
 SuperGPQA, and 25 AIME 2025 problems. The final 17 are an audited COMPSEC
 subset of reduced single-function C/C++ vulnerability-localization questions.
 The model is asked for the single best source line, or the smallest exact line
@@ -1119,6 +1213,12 @@ rows.
 
 The set should be treated as a hard capability regression suite rather than
 a pass/fail unit test.
+
+The separate hard suite contains 30 MMLU-Pro, 10 OlympiadBench, 5 LiveBench,
+and 5 NIST Juliet-derived cases. It covers multiple choice, exact integers,
+reduced fractions, short exact answers, ordered sequences, and security line
+sets. Source revisions, licenses, selected IDs, and transformations are recorded
+in [EVAL_DATA.md](EVAL_DATA.md).
 
 - **GPQA Diamond** contributes graduate-level science questions with
   multiple-choice answers. DeepSeek's model card reports strong results
@@ -1755,6 +1855,33 @@ current scale, `/steer 0` disables it, and `/steer F` sets a value from `-100`
 to `100` for subsequent tokens. The existing KV cache is kept. Live changes
 are currently limited to local sessions, not distributed inference or network
 tensor parallelism.
+
+## Conversation Prefixes
+
+`ds4` and `ds4-agent` can preload a conversation with `--prefix-file FILE`.
+The file contains complete `USER:` / `ASSISTANT:` pairs:
+
+```text
+USER: Write terse answers.
+This line is still part of the user turn.
+ASSISTANT: Understood.
+USER: Return code without an introduction.
+ASSISTANT: I will return only the code.
+```
+
+A marker starts a new turn only at the beginning of a line. The prefix must
+start with `USER:`, alternate roles, and end with `ASSISTANT:`. It is rendered
+with the model's chat template and prefilled before the live prompt.
+
+```sh
+./ds4 --prefix-file prefix.txt
+./ds4-agent --prefix-file prefix.txt
+```
+
+This can also overcome refusal behavior. For example, when a multi-turn prefix
+shows the assistant writing exploits as part of computer-security work, most
+models will comply with the next computer-security requests. The effect is
+studied in *Many-shot Jailbreaking*.
 
 ## Test Vectors
 

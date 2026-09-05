@@ -123,7 +123,10 @@ numbers in the QA report so omissions are visible.
    both successful loads. Corrupt checkpoints must still be rejected.
 10. Run `make dspark-verify-depth` with matching 0731 target and drafter files.
     Strict capture must skip layers without a compressor and compare every
-    captured compressor layer.
+    captured compressor layer. Repeat with the matching Vision Exp pair.
+    The test also verifies a six-token seed-plus-draft block and restores each
+    retained prefix, comparing compressor and index-cache row counts against
+    ordinary decode. Short output comparisons alone can miss stale frontiers.
 11. Send the same long GLM 5.2 prompt twice to one server session. The second
     request must report `cache_source: memory-rewind`, reuse through one token
     before the prompt boundary, and produce the same greedy output as a fresh
@@ -998,6 +1001,80 @@ tests, record aggregate and per-session decode speed.
   loading, caches, streaming, or temporary arenas changed.
 - Run the backend-specific batch tests in sections 4 and 8. Fast single-session
   decode does not substitute for aggregate multi-session throughput.
+
+For M5 dense-kernel changes, run `MTL_DEBUG_LAYER=1 make test-metal-dense-mpp`.
+It checks Q8 decode and Q4_0/Q4_K prefill against exactly representable CPU
+dots, including repeated calls, partial token tiles and untouched output tails.
+Keep host threadgroup allocations in sync with kernel staging: the dense
+double-buffered TensorOps kernel needs 8 KiB, not 4 KiB.
+
+For M5 routed-prefill changes, run `make test-metal-moe-prefill`. It compares
+gate/up, FP16 intermediate, expert partials and final outputs against the
+unpacked path, including empty experts, tile tails and scratch reuse.
+Then build `make metal-prefill-variant-bench metal-decode-schedule-bench` and
+use a resident Flash Q2 or mixed Q2/Q4 model for interleaved full-logit checks:
+
+```sh
+speed-bench/metal_prefill_variant_bench -m "$MODEL" \
+  --prompt-file speed-bench/promessi_sposi.txt --prefix-tokens 2048 \
+  --warmup-tokens 2048 --candidate-env DS4_METAL_DISABLE_ROUTED_MPP_PACKED
+speed-bench/metal_prefill_variant_bench -m "$MODEL" \
+  --prompt-file speed-bench/promessi_sposi.txt --prefix-tokens 16384 \
+  --initial-tokens 12288 --warmup-tokens 2048 \
+  --candidate-env DS4_METAL_DISABLE_ROUTED_MPP_PACKED
+speed-bench/metal_decode_schedule_bench -m "$MODEL" \
+  --prompt-file speed-bench/promessi_sposi.txt --prefix-tokens 8192 \
+  --ctx 9216 --tokens 256 --candidate-env DS4_METAL_DISABLE_ROUTED_MPP_PACKED
+```
+
+Here `control` is the default fast path; `candidate` disables packing.
+Require exact logits and no decode regression. On M5 Max, Flash Vision Exp
+Q2 measured 734.40 versus 711.89 t/s at 2K; mixed Q2/Q4 measured 615.01
+versus 604.62 t/s for a 4K append to 12K. Decode was unchanged. These are
+interleaved sustained measurements, not cold-run peaks. Packing is an M5
+resident-prefill optimization; it does not claim pre-M5 or streaming gains.
+
+For Metal DSpark changes, test matching 0731 and Vision Exp target/drafter
+pairs. Run the acceptance fixture at temperature 0, at temperature 1 with
+forced partial acceptance, and with `--mtp-exact-sampling`. Require zero
+verifier errors and consistent seed/draft counters. A batched seed is a
+normally chosen target token, not a successful draft prediction.
+
+Resident M5 Q2 uses seed batching for longer proposals; short proposals first
+decode the seed normally. Poor acceptance windows pause drafting for 32
+cycles before trying again. `DS4_DSPARK_SEED_BATCH=0` retains the previous
+schedule for diagnostic comparisons. Streaming, TP, exact sampling and other
+device/weight combinations retain their existing defaults.
+
+Compare code and prose, not just a high-acceptance copy prompt. Use at least
+256 generated tokens at temperatures 0 and 1; also sweep 2K/4K/8K/16K live
+frontiers with continued prefill. Record ordinary decode, old DSpark and
+default DSpark separately. Seed batching must not make low-acceptance cases
+worse than the previous DSpark path. It does not promise to beat ordinary
+decode on every prompt. Run the six-session full-logit batch oracle too,
+since a six-row verifier shares routed kernels with session batching.
+
+September 4 M5 measurements, 256 generated tokens, 4096 allocated context:
+
+| Model and prompt | Previous DSpark | Default DSpark |
+| --- | ---: | ---: |
+| 0731 Q2, C hash table, temperature 0 | 55.71 t/s | 62.95 t/s |
+| 0731 Q2, C hash table, temperature 1 | 50.95 t/s | 61.58 t/s |
+| Vision Exp mixed Q2/Q4, C hash table, temperature 0 | 41.65 t/s | 48.86 t/s |
+| Vision Exp mixed Q2/Q4, C hash table, temperature 1 | 43.56 t/s | 47.24 t/s |
+
+These are three-run medians, alternating schedules with the matching drafter,
+`--nothink --top-p 0.95 --min-p 0.05 --seed 12345`. The prompt is:
+"Write a complete C hash table implementation with string keys, insert, find,
+delete, and a test main. Output only C code."
+
+Do not discard slow runs as noise: separate-process tests sometimes varied
+by about 20%, including ordinary decoding. Vision Exp prose showed slower
+outliers; matched GPU-monitored reruns measured about 41.1 versus 38.4 t/s,
+and alternating within one loaded engine measured 40.4 versus 36.7 t/s
+(medians after warm-up).
+Investigate fresh-process variability separately from kernel cost. Ordinary
+decoding still wins on this low-acceptance prompt.
 
 These are the last known good observations available when this gate was added.
 They are reference points for matching hardware and workloads, not performance

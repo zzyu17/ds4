@@ -15285,7 +15285,8 @@ typedef struct {
 
 static bool glm_graph_gate_pair_type_supported(uint32_t gate_type, uint32_t up_type) {
     return gate_type == up_type &&
-           (gate_type == DS4_TENSOR_IQ2_XXS ||
+           (gate_type == DS4_TENSOR_Q8_0 ||
+            gate_type == DS4_TENSOR_IQ2_XXS ||
             gate_type == DS4_TENSOR_Q2_K ||
             gate_type == DS4_TENSOR_Q4_K ||
             gate_type == DS4_TENSOR_Q5_K ||
@@ -15293,7 +15294,8 @@ static bool glm_graph_gate_pair_type_supported(uint32_t gate_type, uint32_t up_t
 }
 
 static bool glm_graph_down_type_supported(uint32_t down_type) {
-    return down_type == DS4_TENSOR_IQ2_XXS ||
+    return down_type == DS4_TENSOR_Q8_0 ||
+           down_type == DS4_TENSOR_IQ2_XXS ||
            down_type == DS4_TENSOR_Q2_K ||
            down_type == DS4_TENSOR_Q4_K ||
            down_type == DS4_TENSOR_Q5_K ||
@@ -15302,6 +15304,10 @@ static bool glm_graph_down_type_supported(uint32_t down_type) {
 }
 
 static float glm_routed_moe_dot_f32(uint32_t type, int n, const uint8_t *row, const float *x) {
+    if (type == DS4_TENSOR_Q8_0) {
+        const uint64_t blocks = ((uint64_t)n + 31u) / 32u;
+        return dot_q8_0_row_f32_ref(row, x, (uint64_t)n, blocks);
+    }
     if (type == DS4_TENSOR_IQ2_XXS) {
         return ds4_vec_dot_iq2_xxs_f32(n, (const block_iq2_xxs *)row, x);
     }
@@ -42217,7 +42223,8 @@ static bool glm_graph_layer_uses_generic_routed_moe(
            l->ffn_gate_exps &&
            l->ffn_up_exps &&
            l->ffn_down_exps &&
-           l->ffn_gate_exps->type == DS4_TENSOR_IQ2_XXS;
+           (l->ffn_gate_exps->type == DS4_TENSOR_Q8_0 ||
+            l->ffn_gate_exps->type == DS4_TENSOR_IQ2_XXS);
 }
 
 static bool glm_tp_validate_ownership_kernels(

@@ -7807,7 +7807,7 @@ static void matvec_f16(float *out, const ds4_model *m, const ds4_tensor *w, cons
     ds4_parallel_for_min_rows(out_dim, matvec_f16_worker, &ctx, min_rows);
 }
 
-static void matvec_f16_serial(float *out, const ds4_model *m, const ds4_tensor *w, const float *x) {
+static DS4_MAYBE_UNUSED void matvec_f16_serial(float *out, const ds4_model *m, const ds4_tensor *w, const float *x) {
     if (w->type != 1 || w->ndim != 2) ds4_die("expected a 2D F16 tensor");
 
     const uint64_t in_dim = w->dim[0];

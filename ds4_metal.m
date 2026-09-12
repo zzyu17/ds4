@@ -12006,6 +12006,17 @@ static int ds4_gpu_encode_get_rows_q8_0(
     return 1;
 }
 
+static int ds4_gpu_native_fp8_scale_layout(
+        uint64_t in_dim,
+        uint64_t out_dim,
+        uint64_t *scale_row_elems,
+        uint64_t *scale_bytes);
+static int ds4_gpu_native_fp8_scale_offset(
+        uint64_t weight_offset,
+        uint64_t in_dim,
+        uint64_t out_dim,
+        uint64_t *scale_offset);
+
 static int ds4_gpu_encode_get_rows_native_fp8(
         id<MTLCommandBuffer> cb,
         id<MTLBuffer>        weight,

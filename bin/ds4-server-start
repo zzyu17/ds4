@@ -5,7 +5,6 @@ DS4_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DS4_SERVER="$DS4_DIR/ds4-server"
 
 MODEL="${DS4_SERVER_MODEL:-flash-q4-imatrix-0731}"
-MODEL_ALIAS="$MODEL"
 PORT="${DS4_SERVER_PORT:-17353}"
 HOST="${DS4_SERVER_HOST:-0.0.0.0}"
 CTX="${DS4_SERVER_CTX:-1000000}"
@@ -44,7 +43,6 @@ Environment variables: DS4_SERVER_MODEL, DS4_SERVER_PORT, DS4_SERVER_HOST,
 
 Disk KV cache is enabled by default (dir: ~/.ollama/kv-cache/<model-alias>,
   budget: 1 TiB, cold-max: 100000 tokens, continued-interval: 4096 tokens).
-  Set DS4_SERVER_KV_DISK_DIR="" to disable, or set to a custom path to override.
 USAGE
 }
 
@@ -77,6 +75,10 @@ while getopts ":m:p:c:t:wqh" opt; do
   esac
 done
 shift $((OPTIND - 1))
+
+# Preserve the caller's model spelling for cache naming before alias resolution.
+# In particular, a -m PATH value should name the cache after that GGUF file.
+MODEL_ALIAS="$MODEL"
 
 # --- alias resolution ---
 ALIAS_FILE="$(dirname "$0")/model-aliases.json"

@@ -216,7 +216,7 @@ kernel void kernel_ds4_native_fp8_moe_down_sum_f32(
         threadgroup float *scratch [[threadgroup(0)]],
         uint2 tgpig [[threadgroup_position_in_grid]],
         uint tid [[thread_index_in_threadgroup]],
-        uint3 ntg [[threads_per_threadgroup]]) {
+        uint2 ntg [[threads_per_threadgroup]]) {
     const uint row = tgpig.x;
     const uint token = tgpig.y;
     if (row >= args.out_dim || token >= args.n_tokens) return;

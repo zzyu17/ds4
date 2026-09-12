@@ -1,19 +1,28 @@
 {
   "model-aliases": [
     {
-      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2.gguf",
-      "cache": "deepseek-v4-flash-q4",
-      "alias": ["flash-q4", "deepseek-v4-flash-q4"]
+      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Vision-Exp-MXFP4Experts/DeepSeek-V4-Flash-Vision-Exp-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out.gguf",
+      "cache": "deepseek-v4-flash-vision",
+      "vision": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Vision-Encoder/DeepSeek-V4-Flash-Vision-Encoder.gguf",
+      "alias": ["deepseek-v4-flash-vision"]
     },
     {
-      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix.gguf",
-      "cache": "deepseek-v4-flash-q4-imatrix",
-      "alias": ["flash-q4-imatrix", "deepseek-v4-flash-q4-imatrix"]
+      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Vision-Uncensored-GGUF/DeepSeek-V4-Flash-Vision-Uncensored-MXFP4.gguf",
+      "cache": "deepseek-v4-flash-vision-uncensored",
+      "vision": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Vision-Encoder/DeepSeek-V4-Flash-Vision-Encoder.gguf",
+      "alias": ["deepseek-v4-flash-vision-uncensored"]
     },
     {
-      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Q4KExperts-imatrix-0731/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix-0731.gguf",
-      "cache": "deepseek-v4-flash-q4-imatrix-0731",
-      "alias": ["flash-q4-imatrix-0731", "deepseek-v4-flash-q4-imatrix-0731"]
+      "model": "/Users/bobo/.ollama/models/source/GLM-5.3-Flash-FP8/GLM-5.3-Flash-Q8_0.gguf",
+      "cache": "glm-5.3-flash",
+      "vision": "/Users/bobo/.ollama/models/source/GLM-5.3-Flash-Vision-Encoder/GLM-5.3-Flash-Vision-Encoder.gguf",
+      "alias": ["glm-5.3-flash"]
+    },
+    {
+      "model": "/Users/bobo/.ollama/models/source/GLM-5.3-Flash-Uncensored-FP8/GLM-5.3-Flash-Uncensored-Q8_0.gguf",
+      "cache": "glm-5.3-flash-uncensored",
+      "vision": "/Users/bobo/.ollama/models/source/GLM-5.3-Flash-Vision-Encoder/GLM-5.3-Flash-Vision-Encoder.gguf",
+      "alias": ["glm-5.3-flash-uncensored"]
     }
   ]
 }

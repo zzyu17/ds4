@@ -524,6 +524,8 @@ def add_ffn(plan, db, layer, artifact):
     )
     if artifact == "q4":
         routed = {"gate": QTYPE_Q4_K, "up": QTYPE_Q4_K, "down": QTYPE_Q4_K}
+    elif artifact == "q8_0":
+        routed = {"gate": QTYPE_Q8_0, "up": QTYPE_Q8_0, "down": QTYPE_Q8_0}
     else:
         routed = {"gate": QTYPE_IQ2_XXS, "up": QTYPE_IQ2_XXS, "down": QTYPE_Q2_K}
     for part in ("gate", "up", "down"):
@@ -1177,7 +1179,7 @@ def parse_args():
     parser.add_argument("--hf", required=True, help="official GLM-5.3 Flash snapshot")
     parser.add_argument("--tokenizer-template", required=True, help="GLM GGUF supplying tokenizer metadata")
     parser.add_argument("--out", help="output GGUF")
-    parser.add_argument("--artifact", choices=("q4", "q2", "fp8"), default="q4")
+    parser.add_argument("--artifact", choices=("q4", "q2", "q8_0", "fp8"), default="q4")
     parser.add_argument("--imatrix", help="legacy DS4/llama.cpp imatrix .dat")
     parser.add_argument("--threads", type=int, default=8)
     parser.add_argument("--source-revision", default="84c6a6aa9497188e15a635ba793b0f95a79b1033")

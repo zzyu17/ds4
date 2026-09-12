@@ -170,7 +170,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--hf", required=True, help="official GLM-5.3 Flash snapshot")
     parser.add_argument("--gguf", required=True, help="GGUF to validate")
-    parser.add_argument("--artifact", choices=("q4", "q2", "fp8"), required=True)
+    parser.add_argument("--artifact", choices=("q4", "q2", "q8_0", "fp8"), required=True)
     parser.add_argument("--verify-payload", action="store_true")
     parser.add_argument(
         "--source-revision",

@@ -22,6 +22,7 @@ from glm53_quantize import (
     Imatrix,
     Quantizer,
     TensorPlan,
+    add_ffn,
     conversion_signature,
     iter_native_tensor_bytes,
     native_fp8_plan,
@@ -156,6 +157,22 @@ class GLM53QuantizeTests(unittest.TestCase):
         self.assertEqual(
             regular_qtype("q4", "embedding", "token_embd.weight", QTYPE_BF16),
             QTYPE_Q8_0,
+        )
+
+    def test_q8_0_recipe_preserves_regular_and_uses_q8_for_routed_weights(self):
+        self.assertEqual(
+            regular_qtype("q8_0", "embedding", "token_embd.weight", QTYPE_BF16),
+            QTYPE_BF16,
+        )
+        self.assertEqual(
+            regular_qtype("q8_0", "linear_attention", "blk.0.kda_q.weight", QTYPE_BF16),
+            QTYPE_BF16,
+        )
+        plan = []
+        add_ffn(plan, FakeFullFFNDB(), 3, "q8_0")
+        self.assertEqual(
+            {item.qtype for item in plan if item.is_expert},
+            {QTYPE_Q8_0},
         )
 
     def test_full_glm_provisional_uses_q2k_experts(self):

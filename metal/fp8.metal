@@ -6,20 +6,22 @@
 // order is preserved: scale rows therefore remain indexed as
 // [output_block][input_block].
 
+static constant float ds4_native_fp8_exp_scale[16] = {
+    0.0f, 0.015625f, 0.03125f, 0.0625f,
+    0.125f, 0.25f, 0.5f, 1.0f,
+    2.0f, 4.0f, 8.0f, 16.0f,
+    32.0f, 64.0f, 128.0f, 256.0f,
+};
+
 static inline float ds4_native_fp8_e4m3fn_value(uchar code) {
     const uint absolute = (uint)code & 0x7fu;
     if (absolute == 0u) return 0.0f;
     const uint exponent = ((uint)code >> 3u) & 0x0fu;
     const uint mantissa = (uint)code & 0x07u;
-    constant float exp_scale[16] = {
-        0.0f, 0.015625f, 0.03125f, 0.0625f,
-        0.125f, 0.25f, 0.5f, 1.0f,
-        2.0f, 4.0f, 8.0f, 16.0f,
-        32.0f, 64.0f, 128.0f, 256.0f,
-    };
     const float value = exponent == 0u
         ? (float)mantissa * 0.001953125f
-        : (1.0f + (float)mantissa * 0.125f) * exp_scale[exponent];
+        : (1.0f + (float)mantissa * 0.125f) *
+          ds4_native_fp8_exp_scale[exponent];
     return (code & 0x80u) != 0u ? -value : value;
 }
 
@@ -148,7 +150,7 @@ kernel void kernel_ds4_native_fp8_moe_pair_swiglu_f32(
         threadgroup float *scratch [[threadgroup(0)]],
         uint3 tgpig [[threadgroup_position_in_grid]],
         uint tid [[thread_index_in_threadgroup]],
-        uint ntg [[threads_per_threadgroup]]) {
+        uint3 ntg [[threads_per_threadgroup]]) {
     const uint row = tgpig.x;
     const uint slot = tgpig.y;
     const uint token = tgpig.z;
@@ -179,25 +181,25 @@ kernel void kernel_ds4_native_fp8_moe_pair_swiglu_f32(
 
     float gate_sum = 0.0f;
     float up_sum = 0.0f;
-    for (uint col = tid; col < args.in_dim; col += ntg) {
+    for (uint col = tid; col < args.in_dim; col += ntg.x) {
         gate_sum = fma(ds4_native_fp8_e4m3fn_value(gate_row[col]) *
                            gate_scale_row[col >> 7u], xr[col], gate_sum);
         up_sum = fma(ds4_native_fp8_e4m3fn_value(up_row[col]) *
                          up_scale_row[col >> 7u], xr[col], up_sum);
     }
     scratch[tid] = gate_sum;
-    scratch[ntg + tid] = up_sum;
+    scratch[ntg.x + tid] = up_sum;
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    for (uint stride = ntg >> 1u; stride != 0u; stride >>= 1u) {
+    for (uint stride = ntg.x >> 1u; stride != 0u; stride >>= 1u) {
         if (tid < stride) {
             scratch[tid] += scratch[tid + stride];
-            scratch[ntg + tid] += scratch[ntg + tid + stride];
+            scratch[ntg.x + tid] += scratch[ntg.x + tid + stride];
         }
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
     if (tid == 0u) {
         mid[mid_index] = ds4_native_fp8_moe_swiglu(
-            scratch[0], scratch[ntg], args.swiglu_clamp) * weights[selected_index];
+            scratch[0], scratch[ntg.x], args.swiglu_clamp) * weights[selected_index];
     }
 }
 
@@ -214,7 +216,7 @@ kernel void kernel_ds4_native_fp8_moe_down_sum_f32(
         threadgroup float *scratch [[threadgroup(0)]],
         uint2 tgpig [[threadgroup_position_in_grid]],
         uint tid [[thread_index_in_threadgroup]],
-        uint ntg [[threads_per_threadgroup]]) {
+        uint3 ntg [[threads_per_threadgroup]]) {
     const uint row = tgpig.x;
     const uint token = tgpig.y;
     if (row >= args.out_dim || token >= args.n_tokens) return;
@@ -234,14 +236,14 @@ kernel void kernel_ds4_native_fp8_moe_down_sum_f32(
         device const float *mid_row = mid +
             (ulong)token * args.mid_token_stride +
             (ulong)slot * args.mid_dim;
-        for (uint col = tid; col < args.mid_dim; col += ntg) {
+        for (uint col = tid; col < args.mid_dim; col += ntg.x) {
             sum = fma(ds4_native_fp8_e4m3fn_value(row_ptr[col]) *
                           scale_row[col >> 7u], mid_row[col], sum);
         }
     }
     scratch[tid] = sum;
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    for (uint stride = ntg >> 1u; stride != 0u; stride >>= 1u) {
+    for (uint stride = ntg.x >> 1u; stride != 0u; stride >>= 1u) {
         if (tid < stride) scratch[tid] += scratch[tid + stride];
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }

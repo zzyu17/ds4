@@ -84,6 +84,53 @@ typedef decltype(kernel_rms_norm_fuse_impl<float4, 1>) kernel_rms_norm_fuse_t;
 template [[host_name("kernel_rms_norm_f32_4")]]     kernel kernel_rms_norm_fuse_t kernel_rms_norm_fuse_impl<float4, 1>;
 template [[host_name("kernel_rms_norm_mul_f32_4")]] kernel kernel_rms_norm_fuse_t kernel_rms_norm_fuse_impl<float4, 2>;
 
+static inline float ds4_native_bf16_to_f32(ushort value) {
+    return as_type<float>((uint)value << 16);
+}
+
+// Native GLM FP8 artifacts retain BF16 normalization vectors. Keep the
+// activation/output side in FP32 while decoding the learned vector here.
+kernel void kernel_glm53_rms_norm_mul_bf16_4(
+        constant ds4_metal_args_norm &args,
+        device const char *src0,
+        device const char *weight,
+        device const char *unused,
+        device char *dst,
+        threadgroup float *shmem_f32 [[threadgroup(0)]],
+        uint3 tgpig [[threadgroup_position_in_grid]],
+        ushort3 tpitg [[thread_position_in_threadgroup]],
+        ushort sgitg [[simdgroup_index_in_threadgroup]],
+        ushort tiisg [[thread_index_in_simdgroup]],
+        ushort3 ntg [[threads_per_threadgroup]]) {
+    (void)unused;
+    if (sgitg == 0) shmem_f32[tiisg] = 0.0f;
+
+    const int row = tgpig.x;
+    device const float4 *x = (device const float4 *)
+        (src0 + (ulong)row * args.nb1);
+    device const ushort4 *w = (device const ushort4 *)weight;
+    float sumf = 0.0f;
+    for (int i = tpitg.x; i < args.ne00_t; i += ntg.x) {
+        const float4 v = x[i];
+        sumf += dot(v, v);
+    }
+    sumf = simd_sum(sumf);
+    if (tiisg == 0) shmem_f32[sgitg] = sumf;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    sumf = simd_sum(shmem_f32[tiisg]);
+
+    const float scale = rsqrt(sumf / (float)args.ne00 + args.eps);
+    device float4 *y = (device float4 *)(dst + (ulong)row * args.nb1);
+    for (int i = tpitg.x; i < args.ne00_t; i += ntg.x) {
+        const ushort4 wb = w[i];
+        const float4 wf = float4(ds4_native_bf16_to_f32(wb.x),
+                                 ds4_native_bf16_to_f32(wb.y),
+                                 ds4_native_bf16_to_f32(wb.z),
+                                 ds4_native_bf16_to_f32(wb.w));
+        y[i] = x[i] * scale * wf;
+    }
+}
+
 kernel void kernel_add_rms_norm_mul_f32_4(
         constant ds4_metal_args_norm & args,
         device const char * src0,

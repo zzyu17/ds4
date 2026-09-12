@@ -231,6 +231,7 @@ int ds4_gpu_preload_q4_expert_tables(const void *model_map, uint64_t model_size,
 int ds4_gpu_should_use_managed_kv_cache(uint64_t kv_cache_bytes, uint64_t context_bytes);
 void ds4_gpu_set_quality(bool quality);
 void ds4_gpu_set_glm_model(bool enabled);
+void ds4_gpu_set_glm_native_fp8(bool enabled);
 void ds4_gpu_set_ssd_streaming(bool enabled);
 void ds4_gpu_set_glm_streaming_prefill_full_layer(bool enabled);
 #ifdef __APPLE__
@@ -677,6 +678,20 @@ int ds4_gpu_matmul_quant_tensor(
         uint64_t                model_size,
         uint64_t                weight_offset,
         uint32_t                weight_type,
+        uint64_t                in_dim,
+        uint64_t                out_dim,
+        const ds4_gpu_tensor *x,
+        uint64_t                n_tok);
+
+/* Native GLM FP8 weights are stored as raw I8 codes followed immediately by
+ * an F32 scale matrix.  The scale offset is explicit because the GGUF I8
+ * type itself carries no scale metadata. */
+int ds4_gpu_matmul_fp8_tensor(
+        ds4_gpu_tensor       *out,
+        const void             *model_map,
+        uint64_t                model_size,
+        uint64_t                weight_offset,
+        uint64_t                scale_offset,
         uint64_t                in_dim,
         uint64_t                out_dim,
         const ds4_gpu_tensor *x,

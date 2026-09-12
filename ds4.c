@@ -770,6 +770,7 @@ static ds4_shape g_ds4_shape = {
 };
 
 static bool g_ds4_flash_vision_exp = false;
+static bool g_ds4_native_fp8 = false;
 
 static uint32_t g_ds4_compress_ratios[DS4_MAX_LAYER] = {0};
 
@@ -2157,6 +2158,7 @@ enum {
     DS4_TENSOR_Q6_K     = 14,
     DS4_TENSOR_Q8_K     = 15,
     DS4_TENSOR_IQ2_XXS  = 16,
+    DS4_TENSOR_I8       = 24,
     DS4_TENSOR_I32      = 26,
     DS4_TENSOR_BF16     = 30,
     DS4_TENSOR_MXFP4    = 39,
@@ -2909,6 +2911,31 @@ static ds4_tensor *model_find_tensor(const ds4_model *m, const char *name) {
     return NULL;
 }
 
+static bool tensor_is_native_fp8(const ds4_tensor *t) {
+    return g_ds4_native_fp8 && t && t->type == DS4_TENSOR_I8;
+}
+
+static ds4_tensor *tensor_native_fp8_scale(
+        const ds4_model  *m,
+        const ds4_tensor *weight) {
+    if (!tensor_is_native_fp8(weight)) return NULL;
+    char name[256];
+    const char suffix[] = "_scale_inv";
+    if (weight->name.len >= sizeof(name) - sizeof(suffix)) {
+        ds4_die("native FP8 tensor name is too long");
+    }
+    memcpy(name, weight->name.ptr, (size_t)weight->name.len);
+    memcpy(name + weight->name.len, suffix, sizeof(suffix));
+    ds4_tensor *scale = model_find_tensor(m, name);
+    if (!scale || scale->type != DS4_TENSOR_F32) {
+        fprintf(stderr,
+                "ds4: native FP8 tensor %.*s is missing its F32 scale tensor\n",
+                (int)weight->name.len, weight->name.ptr);
+        exit(1);
+    }
+    return scale;
+}
+
 static const char *support_kind_name(ds4_support_kind kind) {
     switch (kind) {
     case DS4_SUPPORT_MTP_LEGACY: return "legacy MTP";
@@ -3348,6 +3375,18 @@ static float dsv4_e4m3fn_value_cpu(int i) {
     return exp == 0
         ? (float)mant * 0.001953125f
         : (1.0f + (float)mant * 0.125f) * exp_scale[exp];
+}
+
+static float native_fp8_e4m3fn_value_cpu(uint8_t code) {
+    const int absolute = (int)(code & 0x7fu);
+    if (absolute == 0) return 0.0f;
+    const int exponent = ((int)code >> 3) & 0x0f;
+    const int mantissa = (int)code & 0x07;
+    const float value = exponent == 0
+        ? (float)mantissa * 0.001953125f
+        : (1.0f + (float)mantissa * 0.125f) *
+          dsv4_e4m3fn_value_cpu(exponent << 3) / 1.0f;
+    return (code & 0x80u) ? -value : value;
 }
 
 static float dsv4_e4m3fn_dequant_cpu(float x) {
@@ -4449,7 +4488,10 @@ static void tensor_expect_layout(
         uint64_t          d1,
         uint64_t          d2) {
     if (!t) ds4_die("internal error: missing tensor while validating layout");
-    if (t->type != type) {
+    const bool native_fp8_bf16_float =
+        g_ds4_native_fp8 && type == DS4_TENSOR_F32 &&
+        t->type == DS4_TENSOR_BF16;
+    if (t->type != type && !native_fp8_bf16_float) {
         fprintf(stderr,
                 "ds4: tensor %.*s has type %s, expected %s\n",
                 (int)t->name.len,
@@ -4486,13 +4528,15 @@ static bool tensor_type_is_glm_dense_quant(uint32_t type) {
     return type == DS4_TENSOR_Q8_0 ||
            type == DS4_TENSOR_Q4_K ||
            type == DS4_TENSOR_Q4_0 ||
+           type == DS4_TENSOR_I8 ||
            type == DS4_TENSOR_BF16;
 }
 
 static bool tensor_type_is_dense_quant(uint32_t type) {
     return type == DS4_TENSOR_Q8_0 ||
            type == DS4_TENSOR_Q4_K ||
-           type == DS4_TENSOR_Q4_0;
+           type == DS4_TENSOR_Q4_0 ||
+           type == DS4_TENSOR_I8;
 }
 
 static void tensor_expect_glm_dense_quant_layout(
@@ -4583,6 +4627,7 @@ static void tensor_expect_f16_or_q8_0_layout(
 
 static bool tensor_is_routed_expert_type(uint32_t type) {
     return type == DS4_TENSOR_Q8_0 ||
+           type == DS4_TENSOR_I8 ||
            type == DS4_TENSOR_IQ2_XXS ||
            type == DS4_TENSOR_Q2_K ||
            type == DS4_TENSOR_Q4_K ||
@@ -4594,6 +4639,7 @@ static bool tensor_is_routed_expert_type(uint32_t type) {
 static DS4_MAYBE_UNUSED uint64_t routed_expert_block_bytes(uint32_t type) {
     switch (type) {
     case DS4_TENSOR_Q8_0:    return 34;
+    case DS4_TENSOR_I8:      return 1;
     case DS4_TENSOR_IQ2_XXS: return sizeof(block_iq2_xxs);
     case DS4_TENSOR_Q2_K:    return sizeof(block_q2_K);
     case DS4_TENSOR_Q4_K:    return sizeof(block_q4_K);
@@ -6116,6 +6162,7 @@ static void config_validate_glm53_layer_types(const ds4_model *m) {
 static void config_validate_glm53_model(const ds4_model *m) {
     g_ds4_shape = DS4_SHAPE_GLM53;
     memset(g_ds4_compress_ratios, 0, sizeof(g_ds4_compress_ratios));
+    model_get_bool(m, "glm5-next.native_fp8", &g_ds4_native_fp8);
 
     config_expect_u32("block_count", required_u32(m, "glm5-next.block_count"), DS4_N_LAYER);
     config_expect_u32("trunk_block_count", required_u32(m, "glm5-next.trunk_block_count"),
@@ -6190,6 +6237,7 @@ static void config_validate_glm53_model(const ds4_model *m) {
 
 static void config_validate_model(const ds4_model *m) {
     g_ds4_flash_vision_exp = false;
+    g_ds4_native_fp8 = false;
     ds4_str arch = {0};
     if (model_get_string(m, "general.architecture", &arch)) {
         if (ds4_streq(arch, "glm-dsa")) {
@@ -6754,6 +6802,31 @@ static void model_map_span_include_tensor(
     if (t->bytes > *max_tensor_bytes) *max_tensor_bytes = t->bytes;
 }
 
+static void model_map_span_vec_append(ds4_model_map_span_vec *spans,
+                                      uint64_t                 lo,
+                                      uint64_t                 hi,
+                                      bool                     isolate);
+
+static void model_map_span_include_native_fp8_scale(
+        ds4_model_map_span_vec *spans,
+        const ds4_tensor        *t) {
+    if (!spans || !tensor_is_native_fp8(t) || t->ndim < 2) return;
+    uint64_t rows = (t->dim[0] + 127u) / 128u;
+    uint64_t cols = (t->dim[1] + 127u) / 128u;
+    for (uint32_t d = 2; d < t->ndim; d++) {
+        if (t->dim[d] != 0 && rows > UINT64_MAX / t->dim[d]) return;
+        rows *= t->dim[d];
+    }
+    if (rows > UINT64_MAX / cols || rows * cols > UINT64_MAX / sizeof(float)) return;
+    const uint64_t scale_bytes = rows * cols * sizeof(float);
+    if (t->abs_offset > UINT64_MAX - t->bytes) return;
+    const uint64_t scale_offset = align_up(t->abs_offset + t->bytes, 32u);
+    if (scale_offset > UINT64_MAX - scale_bytes) return;
+    const uint64_t scale_end = scale_offset + scale_bytes;
+    if (scale_bytes > spans->max_tensor_bytes) spans->max_tensor_bytes = scale_bytes;
+    model_map_span_vec_append(spans, t->abs_offset, scale_end, false);
+}
+
 static void model_map_span_vec_append(ds4_model_map_span_vec *spans, uint64_t lo, uint64_t hi, bool isolate) {
     if (!spans || lo == UINT64_MAX || hi <= lo) return;
     if (spans->len == spans->cap) {
@@ -6805,6 +6878,7 @@ static void model_map_span_vec_include_one(ds4_model_map_span_vec *spans, const 
 
     uint64_t lo = UINT64_MAX, hi = 0;
     model_map_span_include_tensor(t, &lo, &hi, &spans->max_tensor_bytes);
+    model_map_span_include_native_fp8_scale(spans, t);
     const bool isolate = (t->type == DS4_TENSOR_Q4_K ||
                           t->type == DS4_TENSOR_MXFP4) &&
                          t->bytes >= q4_isolated_min_bytes;
@@ -7579,14 +7653,57 @@ static void embed_token_q8_0(const ds4_model *m, const ds4_weights *w, int token
     }
 }
 
+static void embed_token_bf16(const ds4_model *m, const ds4_weights *w, int token, float *out) {
+    ds4_tensor *te = w->token_embd;
+    if (te->type != DS4_TENSOR_BF16 || te->ndim != 2) {
+        ds4_die("expected a 2D BF16 token embedding tensor");
+    }
+    if (token < 0 || (uint64_t)token >= te->dim[1]) {
+        ds4_die("token id is outside the embedding table");
+    }
+    const uint16_t *base = tensor_data(m, te);
+    const uint64_t stride = te->dim[0];
+    const uint16_t *row = base + (uint64_t)token * stride;
+    for (uint64_t i = 0; i < stride; i++) {
+        uint32_t bits = (uint32_t)row[i] << 16;
+        memcpy(&out[i], &bits, sizeof(out[i]));
+    }
+}
+
+static void embed_token_native_fp8(const ds4_model *m, const ds4_weights *w,
+                                   int token, float *out) {
+    ds4_tensor *te = w->token_embd;
+    if (!tensor_is_native_fp8(te) || te->ndim != 2) {
+        ds4_die("expected a 2D native FP8 token embedding tensor");
+    }
+    if (token < 0 || (uint64_t)token >= te->dim[1]) {
+        ds4_die("token id is outside the embedding table");
+    }
+    const uint64_t in_dim = te->dim[0];
+    const uint64_t scale_blocks = (in_dim + 127u) / 128u;
+    const uint8_t *weights = tensor_data(m, te);
+    const float *scales = tensor_data(m, tensor_native_fp8_scale(m, te));
+    const uint8_t *row = weights + (uint64_t)token * in_dim;
+    for (uint64_t i = 0; i < in_dim; i++) {
+        const uint64_t scale_index = (uint64_t)(token / 128) * scale_blocks + i / 128;
+        out[i] = native_fp8_e4m3fn_value_cpu(row[i]) * scales[scale_index];
+    }
+}
+
 static void embed_token_any(const ds4_model *m, const ds4_weights *w, int token, float *out) {
     if (!w->token_embd) ds4_die("token embedding tensor is missing");
     switch (w->token_embd->type) {
     case DS4_TENSOR_F16:
         embed_token_f16(m, w, token, out);
         break;
+    case DS4_TENSOR_BF16:
+        embed_token_bf16(m, w, token, out);
+        break;
     case DS4_TENSOR_Q8_0:
         embed_token_q8_0(m, w, token, out);
+        break;
+    case DS4_TENSOR_I8:
+        embed_token_native_fp8(m, w, token, out);
         break;
     default:
         ds4_die("unsupported token embedding tensor type");
@@ -7608,6 +7725,16 @@ static void rms_norm_weight(float *out, const float *x, const float *weight, uin
     for (uint64_t i = 0; i < n; i++) ss += (double)x[i] * x[i];
 
     const float scale = 1.0f / sqrtf((float)(ss / (double)n) + eps);
+    if (g_ds4_native_fp8) {
+        const uint16_t *bf16 = (const uint16_t *)weight;
+        for (uint64_t i = 0; i < n; i++) {
+            uint32_t bits = (uint32_t)bf16[i] << 16;
+            float value;
+            memcpy(&value, &bits, sizeof(value));
+            out[i] = x[i] * scale * value;
+        }
+        return;
+    }
     for (uint64_t i = 0; i < n; i++) out[i] = x[i] * scale * weight[i];
 }
 
@@ -7689,6 +7816,100 @@ static void matvec_f16_serial(float *out, const ds4_model *m, const ds4_tensor *
     for (uint64_t o = 0; o < out_dim; o++) {
         out[o] = dot_f16_row(data + o * in_dim, x, in_dim);
     }
+}
+
+static inline float dot_bf16_row(const uint16_t *row, const float *x, uint64_t n) {
+    float acc = 0.0f;
+    for (uint64_t i = 0; i < n; i++) {
+        uint32_t bits = (uint32_t)row[i] << 16;
+        float value;
+        memcpy(&value, &bits, sizeof(value));
+        acc += value * x[i];
+    }
+    return acc;
+}
+
+typedef struct {
+    float *out;
+    const uint16_t *data;
+    const float *x;
+    uint64_t in_dim;
+} matvec_bf16_ctx;
+
+static void matvec_bf16_worker(void *vctx, uint64_t row0, uint64_t row1) {
+    matvec_bf16_ctx *ctx = vctx;
+    for (uint64_t o = row0; o < row1; o++) {
+        ctx->out[o] = dot_bf16_row(ctx->data + o * ctx->in_dim,
+                                   ctx->x,
+                                   ctx->in_dim);
+    }
+}
+
+static void matvec_bf16(float *out, const ds4_model *m, const ds4_tensor *w, const float *x) {
+    if (w->type != DS4_TENSOR_BF16 || w->ndim != 2) {
+        ds4_die("expected a 2D BF16 tensor");
+    }
+    matvec_bf16_ctx ctx = {
+        .out = out,
+        .data = tensor_data(m, w),
+        .x = x,
+        .in_dim = w->dim[0],
+    };
+    ds4_parallel_for(w->dim[1], matvec_bf16_worker, &ctx);
+}
+
+static inline float dot_native_fp8_row(const uint8_t *row,
+                                       const float *scales,
+                                       const float *x,
+                                       uint64_t in_dim,
+                                       uint64_t scale_blocks) {
+    (void)scale_blocks;
+    float acc = 0.0f;
+    for (uint64_t i = 0; i < in_dim; i++) {
+        const uint64_t scale_index = i / 128;
+        acc += native_fp8_e4m3fn_value_cpu(row[i]) *
+               scales[scale_index] * x[i];
+    }
+    return acc;
+}
+
+typedef struct {
+    float *out;
+    const uint8_t *data;
+    const float *scales;
+    const float *x;
+    uint64_t in_dim;
+    uint64_t scale_blocks;
+} matvec_native_fp8_ctx;
+
+static void matvec_native_fp8_worker(void *vctx, uint64_t row0, uint64_t row1) {
+    matvec_native_fp8_ctx *ctx = vctx;
+    for (uint64_t o = row0; o < row1; o++) {
+        const uint8_t *row = ctx->data + o * ctx->in_dim;
+        const float *scales = ctx->scales + (o / 128) * ctx->scale_blocks;
+        ctx->out[o] = dot_native_fp8_row(row,
+                                         scales,
+                                         ctx->x,
+                                         ctx->in_dim,
+                                         ctx->scale_blocks);
+    }
+}
+
+static void matvec_native_fp8(float *out, const ds4_model *m,
+                              const ds4_tensor *w, const float *x) {
+    if (!tensor_is_native_fp8(w) || w->ndim != 2) {
+        ds4_die("expected a 2D native FP8 tensor");
+    }
+    const uint64_t scale_blocks = (w->dim[0] + 127u) / 128u;
+    matvec_native_fp8_ctx ctx = {
+        .out = out,
+        .data = tensor_data(m, w),
+        .scales = tensor_data(m, tensor_native_fp8_scale(m, w)),
+        .x = x,
+        .in_dim = w->dim[0],
+        .scale_blocks = scale_blocks,
+    };
+    ds4_parallel_for(w->dim[1], matvec_native_fp8_worker, &ctx);
 }
 
 typedef struct {
@@ -8702,7 +8923,9 @@ static void matvec_any(float *out, const ds4_model *m, const ds4_tensor *w, cons
     switch (w->type) {
     case 0: matvec_f32(out, m, w, x); break;
     case 1: matvec_f16(out, m, w, x); break;
+    case DS4_TENSOR_BF16: matvec_bf16(out, m, w, x); break;
     case 8: matvec_q8_0(out, m, w, x); break;
+    case DS4_TENSOR_I8: matvec_native_fp8(out, m, w, x); break;
     default:
         ds4_die("unsupported tensor type for dense matvec");
     }
@@ -8717,6 +8940,13 @@ static float tensor_1d_value(const ds4_model *m, const ds4_tensor *t, uint64_t i
     if (t->type == 1) {
         const uint16_t *p = tensor_data(m, t);
         return f16_to_f32(p[i]);
+    }
+    if (t->type == DS4_TENSOR_BF16) {
+        const uint16_t *p = tensor_data(m, t);
+        uint32_t bits = (uint32_t)p[i] << 16;
+        float value;
+        memcpy(&value, &bits, sizeof(value));
+        return value;
     }
     ds4_die("unsupported tensor scalar type");
     return 0.0f;
@@ -10675,9 +10905,9 @@ static void hc_pre_from_state_one_scratch(
 
     rms_norm_no_weight(flat, residual_hc, hc_dim, DS4_RMS_EPS);
     if (serial_fn) {
-        matvec_f16_serial(mix, model, fn, flat);
+        matvec_any(mix, model, fn, flat);
     } else {
-        matvec_f16(mix, model, fn, flat);
+        matvec_any(mix, model, fn, flat);
     }
 
     const float *scale = tensor_data(model, scale_tensor);
@@ -14854,7 +15084,7 @@ static void output_hc_head_one(
     float *w = xmalloc((size_t)n_hc * sizeof(w[0]));
 
     rms_norm_no_weight(flat, inp_hc, hc_dim, DS4_RMS_EPS);
-    matvec_f16(pre, model, weights->output_hc_fn, flat);
+    matvec_any(pre, model, weights->output_hc_fn, flat);
 
     const float *scale = tensor_data(model, weights->output_hc_scale);
     const float *base = tensor_data(model, weights->output_hc_base);
@@ -15286,6 +15516,7 @@ typedef struct {
 static bool glm_graph_gate_pair_type_supported(uint32_t gate_type, uint32_t up_type) {
     return gate_type == up_type &&
            (gate_type == DS4_TENSOR_Q8_0 ||
+            gate_type == DS4_TENSOR_I8 ||
             gate_type == DS4_TENSOR_IQ2_XXS ||
             gate_type == DS4_TENSOR_Q2_K ||
             gate_type == DS4_TENSOR_Q4_K ||
@@ -15295,6 +15526,7 @@ static bool glm_graph_gate_pair_type_supported(uint32_t gate_type, uint32_t up_t
 
 static bool glm_graph_down_type_supported(uint32_t down_type) {
     return down_type == DS4_TENSOR_Q8_0 ||
+           down_type == DS4_TENSOR_I8 ||
            down_type == DS4_TENSOR_IQ2_XXS ||
            down_type == DS4_TENSOR_Q2_K ||
            down_type == DS4_TENSOR_Q4_K ||
@@ -15726,7 +15958,7 @@ static void output_logits_one_decode_scratch(
     const uint64_t hc_dim = (uint64_t)DS4_N_EMBD * n_hc;
 
     rms_norm_no_weight(scratch->output_flat, inp_hc, hc_dim, DS4_RMS_EPS);
-    matvec_f16(scratch->output_pre, model, weights->output_hc_fn, scratch->output_flat);
+    matvec_any(scratch->output_pre, model, weights->output_hc_fn, scratch->output_flat);
 
     const float *scale = tensor_data(model, weights->output_hc_scale);
     const float *base = tensor_data(model, weights->output_hc_base);
@@ -22966,6 +23198,7 @@ static bool metal_graph_encode_decode_layer_phase(
     if (phase != METAL_DECODE_LAYER_FROM_ROUTER) {
     const bool fuse_hc_norm =
         DS4_N_HC == 4 &&
+        !g_ds4_native_fp8 &&
         !metal_graph_use_reference_hc_decode() &&
         !metal_graph_use_reference_hc_norm_decode();
     const bool stop_before_attn =
@@ -26920,6 +27153,18 @@ static bool metal_graph_matmul_plain_tensor(
         return ds4_gpu_matmul_q8_0_tensor(out, model->map, model->size,
                                             w->abs_offset, in_dim, out_dim, x, n_tok) != 0;
     }
+    if (w->type == DS4_TENSOR_BF16 && ds4_model_is_glm53()) {
+        return ds4_gpu_glm53_matmul_bf16(out, model->map, model->size,
+                                         w->abs_offset, (uint32_t)in_dim,
+                                         (uint32_t)out_dim, x,
+                                         (uint32_t)n_tok) != 0;
+    }
+    if (w->type == DS4_TENSOR_I8) {
+        ds4_tensor *scale = tensor_native_fp8_scale(model, w);
+        return scale && ds4_gpu_matmul_fp8_tensor(
+            out, model->map, model->size, w->abs_offset, scale->abs_offset,
+            in_dim, out_dim, x, n_tok) != 0;
+    }
     if (tensor_type_is_dense_quant(w->type)) {
         return ds4_gpu_matmul_quant_tensor(out,
                                            model->map,
@@ -26954,6 +27199,12 @@ static bool metal_graph_matmul_dense_quant_abs(
         const ds4_gpu_tensor *x,
         uint64_t                n_tok) {
     if (!w || !tensor_type_is_dense_quant(w->type)) return false;
+    if (w->type == DS4_TENSOR_I8) {
+        ds4_tensor *scale = tensor_native_fp8_scale(model, w);
+        return scale && ds4_gpu_matmul_fp8_tensor(
+            out, model->map, model->size, weight_offset, scale->abs_offset,
+            in_dim, out_dim, x, n_tok) != 0;
+    }
     return ds4_gpu_matmul_quant_tensor(out,
                                        model->map,
                                        model->size,
@@ -26995,6 +27246,7 @@ static bool metal_graph_matmul_dense_quant_kslice(
         const ds4_gpu_tensor *x,
         uint64_t                x_elem_off) {
     if (!w || !tensor_type_is_dense_quant(w->type)) return false;
+    if (w->type == DS4_TENSOR_I8) return false;
     return ds4_gpu_matmul_quant_kslice_tensor(out,
                                              model->map,
                                              model->size,
@@ -29571,6 +29823,7 @@ static bool metal_graph_encode_layer_attention_batch(
     bool ok = hc_mix_view && hc_split_view && attn_cur_view && after_attn_hc_view;
     const bool fuse_hc_norm = n_tokens > 1 &&
                               DS4_N_HC == 4 &&
+                              !g_ds4_native_fp8 &&
                               !metal_graph_use_reference_hc_decode() &&
                               metal_graph_enable_batch_hc_norm_fusion();
     if (ok) ok = metal_graph_hc_rms_scale_project(hc_mix_view,
@@ -31319,6 +31572,7 @@ static bool metal_graph_encode_layer_ffn_batch(
     bool ok = hc_mix_view && hc_split_view && ffn_cur_view && next_hc_view;
     const bool fuse_hc_norm = n_tokens > 1 &&
                               DS4_N_HC == 4 &&
+                              !g_ds4_native_fp8 &&
                               !metal_graph_use_reference_hc_decode() &&
                               metal_graph_enable_batch_hc_norm_fusion();
     if (ok) ok = metal_graph_hc_rms_scale_project(hc_mix_view,
@@ -33427,6 +33681,7 @@ static bool metal_graph_seed_dspark_stage_target_cache(
     const uint64_t mix_hc = 2ull * DS4_N_HC + (uint64_t)DS4_N_HC * DS4_N_HC;
     const ds4_layer_weights *block = &dw->stage[stage].block;
     const bool fuse_hc_norm = DS4_N_HC == 4 &&
+                              !g_ds4_native_fp8 &&
                               !metal_graph_use_reference_hc_decode() &&
                               metal_graph_enable_batch_hc_norm_fusion();
 
@@ -33699,6 +33954,7 @@ static bool metal_graph_eval_dspark_stage_block(
         (uint64_t)DS4_N_HEAD_DIM * (DS4_N_HEAD / DS4_N_OUT_GROUP);
     const ds4_layer_weights *block = &dw->stage[stage].block;
     const bool fuse_hc_norm = DS4_N_HC == 4 &&
+                              !g_ds4_native_fp8 &&
                               !metal_graph_use_reference_hc_decode() &&
                               metal_graph_enable_batch_hc_norm_fusion();
 
@@ -42197,7 +42453,10 @@ static bool glm_graph_tensor_layout(
         uint64_t          dim0,
         uint64_t          dim1,
         uint64_t          dim2) {
-    if (!t || t->type != type || t->ndim != ndim) return false;
+    const bool native_fp8_bf16_float =
+        g_ds4_native_fp8 && type == DS4_TENSOR_F32 &&
+        t && t->type == DS4_TENSOR_BF16;
+    if (!t || (t->type != type && !native_fp8_bf16_float) || t->ndim != ndim) return false;
     if (ndim > 0 && t->dim[0] != dim0) return false;
     if (ndim > 1 && t->dim[1] != dim1) return false;
     if (ndim > 2 && t->dim[2] != dim2) return false;
@@ -42224,6 +42483,7 @@ static bool glm_graph_layer_uses_generic_routed_moe(
            l->ffn_up_exps &&
            l->ffn_down_exps &&
            (l->ffn_gate_exps->type == DS4_TENSOR_Q8_0 ||
+            l->ffn_gate_exps->type == DS4_TENSOR_I8 ||
             l->ffn_gate_exps->type == DS4_TENSOR_IQ2_XXS);
 }
 
@@ -43820,6 +44080,19 @@ static bool glm53_graph_session_batch_logits_ensure(
     return true;
 }
 
+static uint32_t glm_graph_weight_type_for_offset(
+        const ds4_model *model,
+        uint64_t         weight_offset);
+static int glm_graph_matmul_by_type(
+        ds4_gpu_tensor       *out,
+        const ds4_model      *model,
+        uint64_t              weight_offset,
+        uint32_t              weight_type,
+        uint64_t              in_dim,
+        uint64_t              out_dim,
+        const ds4_gpu_tensor *x,
+        uint64_t              n_rows);
+
 static int glm_graph_matmul_q8_0_decode_tensor(
         ds4_gpu_tensor       *out,
         const ds4_model      *model,
@@ -43831,25 +44104,11 @@ static int glm_graph_matmul_q8_0_decode_tensor(
     if (!model) return 0;
     const uint32_t weight_type = glm_graph_weight_type_for_offset(model, weight_offset);
     if (ssd_streaming) {
-        return ds4_gpu_matmul_quant_tensor(out,
-                                           model->map,
-                                           model->size,
-                                           weight_offset,
-                                           weight_type,
-                                           in_dim,
-                                           out_dim,
-                                           x,
-                                           1);
+        return glm_graph_matmul_by_type(out, model, weight_offset, weight_type,
+                                        in_dim, out_dim, x, 1);
     }
-    return ds4_gpu_matmul_quant_decode_mpp_model_view_tensor(out,
-                                                             model->map,
-                                                             model->size,
-                                                             weight_offset,
-                                                             weight_type,
-                                                             in_dim,
-                                                             out_dim,
-                                                             x,
-                                                             1);
+    return glm_graph_matmul_by_type(out, model, weight_offset, weight_type,
+                                    in_dim, out_dim, x, 1);
 }
 
 static bool glm_graph_q8_decode_profile_enabled(uint32_t il, const char *label) {
@@ -43867,6 +44126,69 @@ static uint32_t glm_graph_weight_type_for_offset(
         if (t->abs_offset == weight_offset) return t->type;
     }
     return DS4_TENSOR_Q8_0;
+}
+
+static const ds4_tensor *glm_graph_tensor_for_offset(
+        const ds4_model *model,
+        uint64_t         weight_offset) {
+    if (!model || !model->tensors) return NULL;
+    for (uint64_t i = 0; i < model->n_tensors; i++) {
+        if (model->tensors[i].abs_offset == weight_offset) {
+            return &model->tensors[i];
+        }
+    }
+    return NULL;
+}
+
+static int glm_graph_matmul_by_type(
+        ds4_gpu_tensor       *out,
+        const ds4_model      *model,
+        uint64_t              weight_offset,
+        uint32_t              weight_type,
+        uint64_t              in_dim,
+        uint64_t              out_dim,
+        const ds4_gpu_tensor *x,
+        uint64_t              n_rows) {
+    if (!out || !model || !x || n_rows == 0) return 0;
+    if (weight_type == DS4_TENSOR_F32) {
+        return ds4_gpu_matmul_f32_tensor(out, model->map, model->size,
+                                         weight_offset, in_dim, out_dim,
+                                         x, n_rows);
+    }
+    if (weight_type == DS4_TENSOR_F16) {
+        return ds4_gpu_matmul_f16_tensor(out, model->map, model->size,
+                                         weight_offset, in_dim, out_dim,
+                                         x, n_rows);
+    }
+    if (weight_type == DS4_TENSOR_BF16 && ds4_model_is_glm53()) {
+        return ds4_gpu_glm53_matmul_bf16(out, model->map, model->size,
+                                         weight_offset, (uint32_t)in_dim,
+                                         (uint32_t)out_dim, x,
+                                         (uint32_t)n_rows);
+    }
+    if (weight_type == DS4_TENSOR_I8) {
+        const ds4_tensor *weight = glm_graph_tensor_for_offset(model, weight_offset);
+        ds4_tensor *scale = tensor_native_fp8_scale(model, weight);
+        if (!scale) return 0;
+        return ds4_gpu_matmul_fp8_tensor(out,
+                                         model->map,
+                                         model->size,
+                                         weight_offset,
+                                         scale->abs_offset,
+                                         in_dim,
+                                         out_dim,
+                                         x,
+                                         n_rows);
+    }
+    return ds4_gpu_matmul_quant_tensor(out,
+                                       model->map,
+                                       model->size,
+                                       weight_offset,
+                                       weight_type,
+                                       in_dim,
+                                       out_dim,
+                                       x,
+                                       n_rows);
 }
 
 static bool glm_graph_weights_are_q8_0(
@@ -43897,6 +44219,12 @@ static bool glm53_graph_matmul(
                                          out_dim,
                                          x,
                                          1) != 0;
+    }
+    if (weight->type == DS4_TENSOR_I8) {
+        ds4_tensor *scale = tensor_native_fp8_scale(model, weight);
+        return scale && ds4_gpu_matmul_fp8_tensor(
+            out, model->map, model->size, weight->abs_offset,
+            scale->abs_offset, in_dim, out_dim, x, 1) != 0;
     }
     return ds4_gpu_matmul_quant_tensor(out,
                                        model->map,
@@ -43930,6 +44258,12 @@ static bool glm53_graph_matmul_rows(
                                          out_dim,
                                          x,
                                          n_rows) != 0;
+    }
+    if (weight->type == DS4_TENSOR_I8) {
+        ds4_tensor *scale = tensor_native_fp8_scale(model, weight);
+        return scale && ds4_gpu_matmul_fp8_tensor(
+            out, model->map, model->size, weight->abs_offset,
+            scale->abs_offset, in_dim, out_dim, x, n_rows) != 0;
     }
     return ds4_gpu_matmul_quant_tensor(out,
                                        model->map,
@@ -45777,15 +46111,10 @@ static bool glm_graph_matmul_q8_0_tensor(
 
     const uint32_t q8_stripe_tokens = glm_graph_q8_stripe_tokens();
     if (n_tokens <= q8_stripe_tokens) {
-        return ds4_gpu_matmul_quant_tensor(out,
-                                           model->map,
-                                           model->size,
-                                           weight_offset,
-                                           glm_graph_weight_type_for_offset(model, weight_offset),
-                                           in_dim,
-                                           out_dim,
-                                           x,
-                                           n_tokens) != 0;
+        return glm_graph_matmul_by_type(
+            out, model, weight_offset,
+            glm_graph_weight_type_for_offset(model, weight_offset),
+            in_dim, out_dim, x, n_tokens) != 0;
     }
     if (in_dim > UINT64_MAX / sizeof(float) ||
         out_dim > UINT64_MAX / sizeof(float)) {
@@ -45816,15 +46145,10 @@ static bool glm_graph_matmul_q8_0_tensor(
                 (uint64_t)done * out_dim * sizeof(float),
                 (uint64_t)chunk * out_dim * sizeof(float));
         const bool ok = x_view && out_view &&
-            ds4_gpu_matmul_quant_tensor(out_view,
-                                        model->map,
-                                        model->size,
-                                        weight_offset,
-                                        glm_graph_weight_type_for_offset(model, weight_offset),
-                                        in_dim,
-                                        out_dim,
-                                        x_view,
-                                        chunk) != 0;
+            glm_graph_matmul_by_type(
+                out_view, model, weight_offset,
+                glm_graph_weight_type_for_offset(model, weight_offset),
+                in_dim, out_dim, x_view, chunk) != 0;
         ds4_gpu_tensor_free(out_view);
         ds4_gpu_tensor_free(x_view);
         if (!ok) return false;
@@ -45848,15 +46172,10 @@ static bool glm_graph_matmul_q8_0_rows_scalar(
     }
 
     if (glm_graph_indexed_prefill_batch_q8_rows() &&
-        ds4_gpu_matmul_quant_rows_scalar_tensor(out,
-                                                model->map,
-                                                model->size,
-                                                weight_offset,
-                                                glm_graph_weight_type_for_offset(model, weight_offset),
-                                                in_dim,
-                                                out_dim,
-                                                x,
-                                                n_tokens) != 0) {
+        glm_graph_matmul_by_type(
+            out, model, weight_offset,
+            glm_graph_weight_type_for_offset(model, weight_offset),
+            in_dim, out_dim, x, n_tokens) != 0) {
         return true;
     }
 
@@ -45870,15 +46189,10 @@ static bool glm_graph_matmul_q8_0_rows_scalar(
                 (uint64_t)t * out_dim * sizeof(float),
                 out_dim * sizeof(float));
         const bool ok = x_view && out_view &&
-            ds4_gpu_matmul_quant_tensor(out_view,
-                                        model->map,
-                                        model->size,
-                                        weight_offset,
-                                        glm_graph_weight_type_for_offset(model, weight_offset),
-                                        in_dim,
-                                        out_dim,
-                                        x_view,
-                                        1) != 0;
+            glm_graph_matmul_by_type(
+                out_view, model, weight_offset,
+                glm_graph_weight_type_for_offset(model, weight_offset),
+                in_dim, out_dim, x_view, 1) != 0;
         ds4_gpu_tensor_free(out_view);
         ds4_gpu_tensor_free(x_view);
         if (!ok) return false;
@@ -63486,6 +63800,7 @@ static int ds4_engine_open_internal(ds4_engine **out,
              */
             ds4_gpu_set_glm_model(
                     DS4_MODEL_FAMILY == DS4_MODEL_FAMILY_GLM_DSA);
+            ds4_gpu_set_glm_native_fp8(g_ds4_native_fp8);
 #endif
             (void)ds4_gpu_set_model_fd(e->model.fd);
 
@@ -63522,6 +63837,7 @@ static int ds4_engine_open_internal(ds4_engine **out,
         }
         ds4_gpu_set_quality(e->quality);
         ds4_gpu_set_glm_model(DS4_MODEL_FAMILY == DS4_MODEL_FAMILY_GLM_DSA);
+        ds4_gpu_set_glm_native_fp8(g_ds4_native_fp8);
         ds4_gpu_set_ssd_streaming(e->ssd_streaming);
         if (!ds4_engine_configure_streaming_auto_cache(e)) {
             ds4_engine_close(e);

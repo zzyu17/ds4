@@ -5,7 +5,18 @@ struct glm53_kda_args {
     uint n_rows;
     float lower_bound;
     float norm_eps;
+    uint conv_bf16;
+    uint output_norm_bf16;
 };
+
+static inline float glm53_kda_weight(const device char *data,
+                                     ulong index,
+                                     uint bf16) {
+    if (bf16 != 0u) {
+        return as_type<float>((uint)((device const ushort *)data)[index] << 16);
+    }
+    return ((device const float *)data)[index];
+}
 
 /*
  * One threadgroup owns one (sequence, head). Four simdgroups update four
@@ -19,12 +30,12 @@ kernel void kernel_glm53_kda_decode(
         device const float   *raw_gate,
         device const float   *raw_beta,
         device const float   *output_gate,
-        device const float   *q_conv,
-        device const float   *k_conv,
-        device const float   *v_conv,
+        device const char    *q_conv,
+        device const char    *k_conv,
+        device const char    *v_conv,
         device const float   *a_log,
         device const float   *dt_bias,
-        device const float   *output_norm,
+        device const char    *output_norm,
         device float         *conv_state,
         device float         *state,
         device float         *out,
@@ -64,18 +75,27 @@ kernel void kernel_glm53_kda_decode(
         device float *v_state = k_state + HISTORY * projection;
         for (uint w = 0; w < HISTORY; w++) {
             q_acc = fma(q_state[(ulong)w * projection + channel],
-                        q_conv[(ulong)channel * 4u + w], q_acc);
+                        glm53_kda_weight(q_conv, (ulong)channel * 4u + w,
+                                         args.conv_bf16), q_acc);
             k_acc = fma(k_state[(ulong)w * projection + channel],
-                        k_conv[(ulong)channel * 4u + w], k_acc);
+                        glm53_kda_weight(k_conv, (ulong)channel * 4u + w,
+                                         args.conv_bf16), k_acc);
             v_acc = fma(v_state[(ulong)w * projection + channel],
-                        v_conv[(ulong)channel * 4u + w], v_acc);
+                        glm53_kda_weight(v_conv, (ulong)channel * 4u + w,
+                                         args.conv_bf16), v_acc);
         }
         const float q_new = q_in[input_base + tid];
         const float k_new = k_in[input_base + tid];
         const float v_new = v_in[input_base + tid];
-        q_acc = fma(q_new, q_conv[(ulong)channel * 4u + 3u], q_acc);
-        k_acc = fma(k_new, k_conv[(ulong)channel * 4u + 3u], k_acc);
-        v_acc = fma(v_new, v_conv[(ulong)channel * 4u + 3u], v_acc);
+        q_acc = fma(q_new, glm53_kda_weight(q_conv,
+                                            (ulong)channel * 4u + 3u,
+                                            args.conv_bf16), q_acc);
+        k_acc = fma(k_new, glm53_kda_weight(k_conv,
+                                            (ulong)channel * 4u + 3u,
+                                            args.conv_bf16), k_acc);
+        v_acc = fma(v_new, glm53_kda_weight(v_conv,
+                                            (ulong)channel * 4u + 3u,
+                                            args.conv_bf16), v_acc);
 
         q_state[channel] = q_state[projection + channel];
         q_state[projection + channel] = q_state[2ul * projection + channel];
@@ -155,7 +175,8 @@ kernel void kernel_glm53_kda_decode(
         const ulong index = input_base + tid;
         const float gate =
             1.0f / (1.0f + exp(-output_gate[index]));
-        out[index] = so[tid] * o_scale * output_norm[tid] * gate;
+        out[index] = so[tid] * o_scale *
+            glm53_kda_weight(output_norm, tid, args.output_norm_bf16) * gate;
     }
 }
 
@@ -165,9 +186,9 @@ kernel void kernel_glm53_kda_prefill_prepare(
         device float         *k,
         device float         *v,
         device float         *raw_gate,
-        device const float   *q_conv,
-        device const float   *k_conv,
-        device const float   *v_conv,
+        device const char    *q_conv,
+        device const char    *k_conv,
+        device const char    *v_conv,
         device const float   *a_log,
         device const float   *dt_bias,
         device float         *conv_state,
@@ -196,18 +217,27 @@ kernel void kernel_glm53_kda_prefill_prepare(
         float v_acc = 0.0f;
         for (uint w = 0; w < HISTORY; w++) {
             q_acc = fma(q_state[(ulong)w * projection + channel],
-                        q_conv[(ulong)channel * 4u + w], q_acc);
+                        glm53_kda_weight(q_conv, (ulong)channel * 4u + w,
+                                         args.conv_bf16), q_acc);
             k_acc = fma(k_state[(ulong)w * projection + channel],
-                        k_conv[(ulong)channel * 4u + w], k_acc);
+                        glm53_kda_weight(k_conv, (ulong)channel * 4u + w,
+                                         args.conv_bf16), k_acc);
             v_acc = fma(v_state[(ulong)w * projection + channel],
-                        v_conv[(ulong)channel * 4u + w], v_acc);
+                        glm53_kda_weight(v_conv, (ulong)channel * 4u + w,
+                                         args.conv_bf16), v_acc);
         }
         const float q_new = q[index];
         const float k_new = k[index];
         const float v_new = v[index];
-        q_acc = fma(q_new, q_conv[(ulong)channel * 4u + 3u], q_acc);
-        k_acc = fma(k_new, k_conv[(ulong)channel * 4u + 3u], k_acc);
-        v_acc = fma(v_new, v_conv[(ulong)channel * 4u + 3u], v_acc);
+        q_acc = fma(q_new, glm53_kda_weight(q_conv,
+                                            (ulong)channel * 4u + 3u,
+                                            args.conv_bf16), q_acc);
+        k_acc = fma(k_new, glm53_kda_weight(k_conv,
+                                            (ulong)channel * 4u + 3u,
+                                            args.conv_bf16), k_acc);
+        v_acc = fma(v_new, glm53_kda_weight(v_conv,
+                                            (ulong)channel * 4u + 3u,
+                                            args.conv_bf16), v_acc);
         q_state[channel] = q_state[projection + channel];
         q_state[projection + channel] = q_state[2ul * projection + channel];
         q_state[2ul * projection + channel] = q_new;
@@ -290,7 +320,7 @@ kernel void kernel_glm53_kda_prefill_output(
         constant glm53_kda_args &args,
         device float         *out,
         device const float   *output_gate,
-        device const float   *output_norm,
+        device const char    *output_norm,
         threadgroup float    *partial [[threadgroup(0)]],
         uint2 tgpig [[threadgroup_position_in_grid]],
         ushort tid [[thread_index_in_threadgroup]],
@@ -309,6 +339,7 @@ kernel void kernel_glm53_kda_prefill_output(
     float total = lane < 4u ? partial[lane] : 0.0f;
     total = simd_sum(total);
     const float scale = rsqrt(total / (float)D + args.norm_eps);
-    out[base + tid] = raw * scale * output_norm[tid] /
+    out[base + tid] = raw * scale *
+        glm53_kda_weight(output_norm, tid, args.output_norm_bf16) /
         (1.0f + exp(-output_gate[base + tid]));
 }

@@ -3,6 +3,74 @@
 #include "../ds4.c"
 #include <assert.h>
 
+static void test_vision_prefix(void) {
+    ds4_session *s = calloc(1, sizeof(*s));
+    assert(s);
+    s->checkpoint_valid = true;
+    s->checkpoint.len = 100;
+    ds4_vision_span images[2] = {
+        {.token_start = 100, .embedding = {.token_count = 10, .fingerprint = {1}}},
+        {.token_start = 150, .embedding = {.token_count = 10, .fingerprint = {2}}},
+    };
+    assert(ds4_session_vision_prefix_matches(s, NULL, 0));
+    assert(ds4_session_vision_prefix_matches(s, images, 1));
+    assert(!ds4_session_vision_state_matches(s, images, 1));
+    images[0].token_start = 99;
+    assert(!ds4_session_vision_prefix_matches(s, images, 1));
+    ds4_vision_identity old = {.token_start = 50, .token_count = 10, .fingerprint = {1}};
+    s->checkpoint_images = &old;
+    s->checkpoint_image_count = 1;
+    images[0].token_start = 50;
+    assert(ds4_session_vision_state_matches(s, images, 1));
+    assert(ds4_session_vision_prefix_matches(s, images, 2));
+    assert(!ds4_session_vision_state_matches(s, images, 2));
+    assert(!ds4_session_vision_prefix_matches(s, NULL, 0));
+    images[0].embedding.fingerprint[0] ^= 1;
+    assert(!ds4_session_vision_prefix_matches(s, images, 2));
+    images[0].embedding.fingerprint[0] ^= 1;
+    images[0].token_start++;
+    assert(!ds4_session_vision_prefix_matches(s, images, 2));
+    images[0].token_start--;
+    images[0].token_start = 7;
+    assert(ds4_session_rebase_vision_state(s, images, 1));
+    assert(images[0].token_start == 50);
+    images[0].token_start = 7;
+    assert(!ds4_session_rebase_vision_state(s, images, 2));
+    assert(images[0].token_start == 7);
+    images[0].embedding.fingerprint[0] ^= 1;
+    assert(!ds4_session_rebase_vision_state(s, images, 1));
+    assert(images[0].token_start == 7);
+    images[0].embedding.fingerprint[0] ^= 1;
+    images[0].embedding.token_count++;
+    assert(!ds4_session_rebase_vision_state(s, images, 1));
+    images[0].embedding.token_count--;
+    images[0].token_start = 50;
+    images[1].token_start = 99;
+    assert(!ds4_session_vision_prefix_matches(s, images, 2));
+    ds4_vision_identity pair[2] = {
+        {.token_start = 50, .token_count = 10, .fingerprint = {1}},
+        {.token_start = 70, .token_count = 10, .fingerprint = {2}},
+    };
+    s->checkpoint_images = pair;
+    s->checkpoint_image_count = 2;
+    images[0].token_start = 7;
+    images[1].token_start = 8;
+    images[1].embedding.fingerprint[31] ^= 1;
+    assert(!ds4_session_rebase_vision_state(s, images, 2));
+    assert(images[0].token_start == 7 && images[1].token_start == 8);
+    images[1].embedding.fingerprint[31] ^= 1;
+    assert(ds4_session_rebase_vision_state(s, images, 2));
+    assert(images[0].token_start == 50 && images[1].token_start == 70);
+    assert(ds4_session_vision_state_matches(s, images, 2));
+    ds4_vision_span swapped[2] = {images[1], images[0]};
+    assert(!ds4_session_rebase_vision_state(s, swapped, 2));
+    assert(!ds4_session_vision_prefix_matches(s, swapped, 2));
+    s->checkpoint_valid = false;
+    assert(!ds4_session_vision_prefix_matches(s, images, 2));
+    assert(!ds4_session_rebase_vision_state(s, images, 2));
+    free(s);
+}
+
 static void test_rewind(void) {
     ds4_engine e = { .backend = DS4_BACKEND_CPU };
     ds4_session *s = calloc(1, sizeof(*s));
@@ -113,6 +181,59 @@ static void test_payload_tokens(void) {
                                            &tokens, err, sizeof(err)) != 0);
     ds4_tokens_free(&tokens);
     fclose(fp);
+}
+
+static void test_snapshot_bytes(void) {
+    const ds4_shape saved_shape = g_ds4_shape;
+    const uint32_t saved_ratio = g_ds4_compress_ratios[0];
+    g_ds4_shape = DS4_SHAPE_FLASH;
+    g_ds4_shape.n_layer = 1;
+    g_ds4_shape.n_head_dim = 4;
+    g_ds4_shape.n_vocab = 8;
+    g_ds4_compress_ratios[0] = 0;
+    ds4_engine e = {.backend = DS4_BACKEND_CPU};
+    ds4_session *s = calloc(1, sizeof(*s));
+    assert(s);
+    s->engine = &e;
+    s->ctx_size = 8;
+    s->prefill_cap = 1;
+    s->checkpoint_valid = true;
+    s->logits = calloc(DS4_N_VOCAB, sizeof(float));
+    assert(s->logits);
+    kv_cache_init(&s->cpu_cache, 8, 0);
+    for (int i = 0; i < 3; i++) ds4_tokens_push(&s->checkpoint, i);
+    /* Every byte of the final float is nonzero, including the last byte. */
+    const uint32_t bits = UINT32_C(0x3f9e0652);
+    for (int i = 0; i < 3 * 4; i++)
+        memcpy(s->cpu_cache.layer[0].raw_kv + i, &bits, sizeof(bits));
+    ds4_session_snapshot snapshot = {0};
+    const int lengths[] = {1, 3, 2, 3};
+    for (size_t i = 0; i < sizeof(lengths) / sizeof(*lengths); i++) {
+        s->checkpoint.len = lengths[i];
+        s->cpu_cache.layer[0].n_raw = lengths[i];
+        char err[192] = {0};
+        FILE *fp = tmpfile();
+        assert(fp);
+        assert(ds4_session_save_payload(s, fp, err, sizeof(err)) == 0);
+        const long bytes = ftell(fp);
+        assert(bytes > 0);
+        assert(ds4_session_save_snapshot(s, &snapshot, err, sizeof(err)) == 0);
+        assert(snapshot.len == (uint64_t)bytes);
+        rewind(fp);
+        for (long j = 0; j < bytes; j++) {
+            const int expected = fgetc(fp);
+            if (expected != snapshot.ptr[j])
+                fprintf(stderr, "snapshot byte %ld/%ld: expected=%d actual=%d\n",
+                        j, bytes, expected, snapshot.ptr[j]);
+            assert(expected == snapshot.ptr[j]);
+        }
+        assert(fgetc(fp) == EOF);
+        fclose(fp);
+    }
+    ds4_session_snapshot_free(&snapshot);
+    ds4_session_free(s);
+    g_ds4_shape = saved_shape;
+    g_ds4_compress_ratios[0] = saved_ratio;
 }
 
 static void test_text_observations(void) {
@@ -289,9 +410,11 @@ static void test_glm_spec_rollback(void) {
 #endif
 
 int main(void) {
+    test_vision_prefix();
     test_rewind();
     test_session_memory();
     test_payload_tokens();
+    test_snapshot_bytes();
     test_text_observations();
 #ifndef DS4_NO_GPU
     test_glm_attention_budget();

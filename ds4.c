@@ -2618,6 +2618,14 @@ static bool ds4_dspark_rocm_gfx1151_fast_path(void) {
 #endif
 }
 
+static bool ds4_dspark_rocm_gfx1151_reference_alignment(void) {
+#if defined(DS4_ROCM_BUILD) && !defined(DS4_NO_GPU)
+    return ds4_gpu_dspark_gfx1151_fast_path() != 0;
+#else
+    return false;
+#endif
+}
+
 typedef struct {
     uint32_t stages;
     uint32_t block_size;
@@ -28309,6 +28317,39 @@ static bool metal_graph_dspark_cache_ends_at(const ds4_gpu_graph *g,
            g->dspark_cache_token_start + g->dspark_cache_len == pos;
 }
 
+/* The physical ring also holds temporary draft rows; only trusted target features belong to this logical window. */
+static bool metal_graph_dspark_cache_merge_target_range(ds4_gpu_graph *g,
+                                                        uint32_t start,
+                                                        uint32_t len) {
+    if (!g || len == 0 || len > g->dspark_cache_cap ||
+        start > UINT32_MAX - len || DS4_N_SWA == 0 ||
+        !metal_graph_dspark_cache_current_window_valid(g)) return false;
+    const uint32_t end = start + len;
+    uint32_t first = start;
+    if (g->dspark_cache_len != 0) {
+        const uint32_t old_start = g->dspark_cache_token_start;
+        const uint32_t old_end = old_start + g->dspark_cache_len;
+        /* Incoming capture is authoritative: retain only an overlapping/adjacent prefix, never its old future. */
+        if (old_start < start && start <= old_end) first = old_start;
+    }
+    uint32_t limit = DS4_N_SWA;
+    if (limit > g->dspark_cache_cap) limit = g->dspark_cache_cap;
+    if (end - first > limit) first = end - limit;
+    return metal_graph_dspark_cache_set_window(g, first, end - first);
+}
+
+static bool metal_graph_dspark_cache_target_prefix(ds4_gpu_graph *g,
+                                                    uint32_t feature_pos) {
+    if (!g || DS4_N_SWA == 0 ||
+        !metal_graph_dspark_cache_crop_to_prefix(g, feature_pos) ||
+        !metal_graph_dspark_cache_ends_at(g, feature_pos)) return false;
+    const uint32_t limit = DS4_N_SWA - 1u;
+    if (g->dspark_cache_len > limit) {
+        return metal_graph_dspark_cache_set_window(g, feature_pos - limit, limit);
+    }
+    return true;
+}
+
 static bool metal_graph_dspark_cache_claim_appended_row(ds4_gpu_graph *g,
                                                         uint32_t pos) {
     if (!g || g->dspark_cache_len == 0 ||
@@ -33095,7 +33136,8 @@ static bool metal_graph_prepare_dspark_setup_block(
     const uint64_t hc_dim = (uint64_t)DS4_N_HC * DS4_N_EMBD;
     const uint64_t hc_bytes = hc_dim * sizeof(float);
     int32_t positions[DS4_DSPARK_MAX_BLOCK_SIZE + 1u];
-    positions[0] = (int32_t)pos;
+    if (ds4_dspark_rocm_gfx1151_reference_alignment() && pos == 0) return false;
+    positions[0] = (int32_t)(ds4_dspark_rocm_gfx1151_reference_alignment() ? pos - 1u : pos);
     for (uint32_t i = 0; i < dw->block_size; i++) {
         positions[i + 1u] = (int32_t)(pos + i);
     }
@@ -33176,7 +33218,8 @@ static bool metal_graph_prepare_dspark_stage0_setup_block(
     const uint64_t hc_dim = (uint64_t)DS4_N_HC * DS4_N_EMBD;
     const uint64_t hc_bytes = hc_dim * sizeof(float);
     int32_t positions[DS4_DSPARK_MAX_BLOCK_SIZE + 1u];
-    positions[0] = (int32_t)pos;
+    if (ds4_dspark_rocm_gfx1151_reference_alignment() && pos == 0) return false;
+    positions[0] = (int32_t)(ds4_dspark_rocm_gfx1151_reference_alignment() ? pos - 1u : pos);
     for (uint32_t i = 0; i < dw->block_size; i++) {
         positions[i + 1u] = (int32_t)(pos + i);
     }
@@ -33438,6 +33481,14 @@ static bool metal_graph_seed_dspark_stage_target_cache(
         return false;
     }
 
+    const bool direct_target_kv = ds4_dspark_rocm_gfx1151_reference_alignment();
+    if (direct_target_kv &&
+        (!metal_graph_batch_ffn_norm(g) ||
+         ds4_gpu_tensor_bytes(metal_graph_batch_ffn_norm(g)) <
+             (uint64_t)n_tokens * DS4_N_EMBD * sizeof(float))) {
+        return false;
+    }
+
     const uint64_t hc_dim = (uint64_t)DS4_N_HC * DS4_N_EMBD;
     const uint64_t mix_hc = 2ull * DS4_N_HC + (uint64_t)DS4_N_HC * DS4_N_HC;
     const ds4_layer_weights *block = &dw->stage[stage].block;
@@ -33465,19 +33516,19 @@ static bool metal_graph_seed_dspark_stage_target_cache(
     const float attn_factor = 1.0f;
 
     if (ok && !commands_open) ok = ds4_gpu_begin_commands() != 0;
-    if (ok) ok = ds4_gpu_rms_norm_plain_rows_tensor(metal_graph_batch_flat_hc(g),
+    if (ok && !direct_target_kv) ok = ds4_gpu_rms_norm_plain_rows_tensor(metal_graph_batch_flat_hc(g),
                                                       metal_graph_batch_cur_hc(g),
                                                       (uint32_t)hc_dim,
                                                       n_tokens,
                                                       DS4_RMS_EPS) != 0;
-    if (ok) ok = metal_graph_matmul_plain_tensor(hc_mix_view,
+    if (ok && !direct_target_kv) ok = metal_graph_matmul_plain_tensor(hc_mix_view,
                                                  dspark_model,
                                                  block->hc_attn_fn,
                                                  hc_dim,
                                                  mix_hc,
                                                  metal_graph_batch_flat_hc(g),
                                                  n_tokens);
-    if (fuse_hc_norm) {
+    if (!direct_target_kv && fuse_hc_norm) {
         if (ok) ok = ds4_gpu_hc_split_weighted_sum_norm_tensor(attn_cur_view,
                                                                  metal_graph_batch_attn_norm(g),
                                                                  hc_split_view,
@@ -33493,7 +33544,7 @@ static bool metal_graph_seed_dspark_stage_target_cache(
                                                                  DS4_N_HC_SINKHORN_ITER,
                                                                  DS4_HC_EPS,
                                                                  DS4_RMS_EPS) != 0;
-    } else {
+    } else if (!direct_target_kv) {
         if (ok) ok = ds4_gpu_hc_split_weighted_sum_tensor(attn_cur_view,
                                                             hc_split_view,
                                                             hc_mix_view,
@@ -33515,12 +33566,15 @@ static bool metal_graph_seed_dspark_stage_target_cache(
                                                           n_tokens,
                                                           DS4_RMS_EPS) != 0;
     }
+    /* DSpark target features already have stage-0 main_proj/main_norm. The reference applies wkv directly; support HC/attn_norm is for drafts. */
     if (ok) ok = metal_graph_matmul_plain_tensor(metal_graph_batch_kv_raw(g),
                                                  dspark_model,
                                                  block->attn_kv,
                                                  DS4_N_EMBD,
                                                  DS4_N_HEAD_DIM,
-                                                 metal_graph_batch_attn_norm(g),
+                                                 direct_target_kv ?
+                                                     metal_graph_batch_ffn_norm(g) :
+                                                     metal_graph_batch_attn_norm(g),
                                                  n_tokens);
     if (ok) ok = ds4_gpu_rms_norm_weight_rows_tensor(metal_graph_batch_kv(g),
                                                       metal_graph_batch_kv_raw(g),
@@ -33611,9 +33665,10 @@ static bool metal_graph_seed_dspark_initial_cache_from_prefill(
         (void)ds4_gpu_synchronize();
         return false;
     }
-    if (!metal_graph_dspark_cache_set_window(g, batch_start, n_tokens)) {
-        return false;
-    }
+    const bool window_ok = ds4_dspark_rocm_gfx1151_reference_alignment() ?
+        metal_graph_dspark_cache_merge_target_range(g, batch_start, n_tokens) :
+        metal_graph_dspark_cache_set_window(g, batch_start, n_tokens);
+    if (!window_ok) return false;
     if (seeded_rows) *seeded_rows = n_tokens;
     return true;
 }
@@ -33693,6 +33748,9 @@ static bool metal_graph_eval_dspark_stage_block(
         return false;
     }
 
+    const bool align_rocm = ds4_dspark_rocm_gfx1151_reference_alignment();
+    if (align_rocm && pos == 0) return false;
+    const uint32_t feature_pos = align_rocm ? pos - 1u : pos;
     const uint32_t draft = dw->block_size;
     const uint32_t rows = draft + 1u;
     if (support_len > g->dspark_cache_cap ||
@@ -33702,7 +33760,7 @@ static bool metal_graph_eval_dspark_stage_block(
     }
     const uint32_t visible_rows = support_len + rows;
     const uint32_t attention_raw_start =
-        support_len ? raw_start : (pos % g->dspark_cache_cap);
+        support_len ? raw_start : (feature_pos % g->dspark_cache_cap);
     const uint32_t append_pos = support_len ?
         (uint32_t)(((uint64_t)raw_start + support_len) %
                    g->dspark_cache_cap) :
@@ -33875,6 +33933,14 @@ static bool metal_graph_eval_dspark_stage_block(
                                            DS4_ROPE_YARN_BETA_SLOW) != 0;
     DS4_DSPARK_PROFILE_STAGE("q_path");
 
+    if (ok && ds4_dspark_rocm_gfx1151_reference_alignment()) {
+        /* Keep every draft row's HC/attn_norm result; only target row zero uses the already-projected main_x shared by all support stages. */
+        ok = ds4_gpu_tensor_copy(metal_graph_batch_attn_norm(g),
+                                  0,
+                                  g->dspark_main_x,
+                                  0,
+                                  (uint64_t)DS4_N_EMBD * sizeof(float)) != 0;
+    }
     if (ok) ok = metal_graph_matmul_plain_tensor(metal_graph_batch_kv_raw(g),
                                                  dspark_model,
                                                  block->attn_kv,
@@ -33895,7 +33961,7 @@ static bool metal_graph_eval_dspark_stage_block(
                                            1,
                                            DS4_N_HEAD_DIM,
                                            DS4_N_ROT,
-                                           pos,
+                                           feature_pos,
                                            0,
                                            false,
                                            freq_base,
@@ -34050,18 +34116,21 @@ static bool metal_graph_eval_dspark_stage_chain(
         return false;
     }
 
+    const bool align_rocm = ds4_dspark_rocm_gfx1151_reference_alignment();
+    if (align_rocm && pos == 0) return false;
+    const uint32_t feature_pos = align_rocm ? pos - 1u : pos;
     const uint32_t rows = dw->block_size + 1u;
     const uint32_t support_len = g->dspark_cache_len;
     const uint32_t raw_start = support_len ? g->dspark_cache_start : 0;
     if (support_len > g->dspark_cache_cap ||
         rows > g->dspark_cache_cap - support_len ||
         (support_len != 0 && raw_start >= g->dspark_cache_cap) ||
-        !metal_graph_dspark_cache_ends_at(g, pos)) {
+        !metal_graph_dspark_cache_ends_at(g, feature_pos)) {
         return false;
     }
     if (cache_start_out) {
         *cache_start_out = support_len ? raw_start :
-            (pos % g->dspark_cache_cap);
+            (feature_pos % g->dspark_cache_cap);
     }
     if (cache_rows_out) *cache_rows_out = support_len + rows;
 
@@ -34122,6 +34191,10 @@ static bool metal_graph_eval_dspark_stage_chain(
         (void)ds4_gpu_synchronize();
         return false;
     }
+    if (align_rocm) {
+        /* Draft rows remain temporary; only the committed target feature joins the history. */
+        return metal_graph_dspark_cache_merge_target_range(g, feature_pos, 1u);
+    }
     return true;
 }
 
@@ -34131,9 +34204,10 @@ static bool metal_graph_dspark_ring_maintain(
         const ds4_model          *dspark_model,
         const ds4_dspark_weights *dw,
         uint32_t                  pos) {
+    const bool align_rocm = ds4_dspark_rocm_gfx1151_reference_alignment();
     if (!g || !dspark_model || !dw ||
         !g->dspark_capture_valid ||
-        g->dspark_cache_len == 0 ||
+        (!align_rocm && g->dspark_cache_len == 0) ||
         !metal_graph_dspark_cache_ends_at(g, pos) ||
         !dspark_stage0_weights_ready(g, dw) ||
         !dspark_stage_cache_ready(g, dw) ||
@@ -34221,7 +34295,11 @@ static bool metal_graph_dspark_ring_maintain(
     else (void)ds4_gpu_synchronize();
     ds4_gpu_tensor_free(kv_view);
     ds4_gpu_tensor_free(kv_raw_view);
-    if (ok) (void)metal_graph_dspark_cache_claim_appended_row(g, pos);
+    if (ok && align_rocm) {
+        ok = metal_graph_dspark_cache_merge_target_range(g, pos, 1u);
+    } else if (ok) {
+        (void)metal_graph_dspark_cache_claim_appended_row(g, pos);
+    }
     return ok;
 }
 
@@ -46382,7 +46460,10 @@ static bool glm_graph_seed_streaming_expert_cache_from_full_layer(
         }
         if (frequency[best] == 0) break;
         experts[n] = (int32_t)best;
-        priority[n++] = frequency[best];
+        /* The recency bonus ranks the preload, not observed decode uses.
+         * Keep it bounded so demand-loaded experts can replace the seed. */
+        priority[n] = metal_graph_streaming_builtin_hotness(target - n, target);
+        n++;
         frequency[best] = 0;
     }
     if (ok && n != 0) {
@@ -54491,6 +54572,13 @@ static bool ds4_session_dspark_rocm_gfx1151_fast_path(
            ds4_dspark_rocm_gfx1151_fast_path();
 }
 
+static bool ds4_session_dspark_rocm_gfx1151_reference_alignment(
+        const ds4_session *s) {
+    return s && s->engine &&
+           s->engine->backend == DS4_BACKEND_CUDA &&
+           ds4_dspark_rocm_gfx1151_reference_alignment();
+}
+
 static bool ds4_session_dspark_seed_batch_enabled(
         const ds4_session *s) {
     const char *env = getenv("DS4_DSPARK_SEED_BATCH");
@@ -57575,21 +57663,24 @@ int ds4_session_save_snapshot(ds4_session *s, ds4_session_snapshot *snap, char *
         payload_set_err(err, errlen, "session has no valid checkpoint to snapshot");
         return 1;
     }
-    if (bytes > (uint64_t)SIZE_MAX) {
+    if (bytes >= (uint64_t)SIZE_MAX) {
         payload_set_err(err, errlen, "session snapshot is too large for this platform");
         return 1;
     }
-    if (snap->cap < bytes) {
-        uint8_t *p = realloc(snap->ptr, (size_t)bytes);
+    /* fmemopen appends a NUL even in binary mode. Keep it outside the payload
+     * or fclose can overwrite the final byte of the last cache tensor. */
+    const uint64_t capacity = bytes + 1;
+    if (snap->cap < capacity) {
+        uint8_t *p = realloc(snap->ptr, (size_t)capacity);
         if (!p) {
             payload_set_err(err, errlen, "out of memory while allocating session snapshot");
             return 1;
         }
         snap->ptr = p;
-        snap->cap = bytes;
+        snap->cap = capacity;
     }
 
-    FILE *fp = fmemopen(snap->ptr, (size_t)bytes, "wb");
+    FILE *fp = fmemopen(snap->ptr, (size_t)capacity, "wb");
     if (!fp) {
         payload_set_err(err, errlen, "failed to open memory stream for session snapshot");
         return 1;
@@ -62984,7 +63075,7 @@ static int ds4_engine_open_internal(ds4_engine **out,
                                      const ds4_engine_options *opt,
                                      const ds4_gpu_config *gpu_cfg) {
     ds4_engine *e = xcalloc(1, sizeof(*e));
-#ifdef DS4_ROCM_BUILD
+#if defined(DS4_ROCM_BUILD) && !defined(DS4_NO_GPU)
     g_glm_rocm_guard_available_baseline = 0;
     (void)ds4_linux_nonmovable_memory(&g_glm_rocm_guard_available_baseline);
 #endif
@@ -66614,12 +66705,12 @@ static void ds4_session_note_prefill_progress(void *ud, const char *event, int c
  */
 static int ds4_session_sync_internal(ds4_session *s, const ds4_tokens *prompt, char *err, size_t errlen);
 
-static bool ds4_session_vision_prefix_matches(
+bool ds4_session_vision_prefix_matches(
         const ds4_session     *s,
         const ds4_vision_span *images,
         size_t                 image_count) {
     if (!s || (image_count != 0 && !images)) return false;
-    if (!s->checkpoint_valid) return true;
+    if (!s->checkpoint_valid) return false;
     if (s->checkpoint_image_count > image_count) return false;
     for (size_t i = 0; i < s->checkpoint_image_count; i++) {
         const ds4_vision_identity *old = &s->checkpoint_images[i];
@@ -66643,6 +66734,20 @@ bool ds4_session_vision_state_matches(
     return s && s->checkpoint_valid &&
            s->checkpoint_image_count == image_count &&
            ds4_session_vision_prefix_matches(s, images, image_count);
+}
+
+bool ds4_session_rebase_vision_state(const ds4_session *s,
+                                     ds4_vision_span *images, size_t image_count) {
+    if (!s || !s->checkpoint_valid || (image_count && !images) ||
+        image_count != s->checkpoint_image_count) return false;
+    for (size_t i = 0; i < image_count; i++) {
+        if (images[i].embedding.token_count != s->checkpoint_images[i].token_count ||
+            memcmp(images[i].embedding.fingerprint, s->checkpoint_images[i].fingerprint,
+                   sizeof(images[i].embedding.fingerprint))) return false;
+    }
+    for (size_t i = 0; i < image_count; i++)
+        images[i].token_start = s->checkpoint_images[i].token_start;
+    return true;
 }
 
 bool ds4_session_has_vision_state(const ds4_session *s) {
@@ -66690,7 +66795,7 @@ static bool ds4_session_store_vision_identities(ds4_session *s) {
  * once its matching prefill completes, surfacing worker-side failures
  * here instead of as a gate timeout mid-decode. */
 int ds4_session_sync(ds4_session *s, const ds4_tokens *prompt, char *err, size_t errlen) {
-    if (s && !ds4_session_vision_prefix_matches(
+    if (s && s->checkpoint_valid && !ds4_session_vision_prefix_matches(
                      s, s->sync_images, s->sync_image_count)) {
         ds4_session_invalidate(s);
     }
@@ -68130,12 +68235,18 @@ static bool ds4_session_prepare_dspark_draft_impl(ds4_session *s,
     s->dspark_last_confidence0 = 0.0f;
     s->dspark_last_confidence0_valid = false;
     if (scheduler_enabled) s->dspark_last_propose_ms = 0.0;
+    const bool align_rocm = ds4_session_dspark_rocm_gfx1151_reference_alignment(s);
+    if (align_rocm && (pos == 0 || pos != (uint32_t)s->checkpoint.len)) return false;
+    const uint32_t feature_pos = align_rocm ? pos - 1u : pos;
     if (enabled && !fake_argmax_enabled &&
         ds4_session_dspark_scheduler_should_skip(s)) {
+        if (align_rocm) {
+            (void)metal_graph_dspark_cache_target_prefix(&s->graph, feature_pos);
+        }
         (void)metal_graph_dspark_ring_maintain(&s->graph,
                                                &s->engine->mtp_model,
                                                &s->engine->dspark_weights,
-                                               pos);
+                                               feature_pos);
         const double propose_ms =
             time_enabled ? (now_sec() - stats_t0) * 1000.0 : 0.0;
         if (scheduler_enabled) s->dspark_last_propose_ms = propose_ms;
@@ -68229,10 +68340,16 @@ static bool ds4_session_prepare_dspark_draft_impl(ds4_session *s,
             if (initial_cache_ready) {
                 if (!initial_cache_ok) metal_graph_dspark_cache_reset(&s->graph);
                 cache_window_ok = initial_cache_ok;
+                if (cache_window_ok && align_rocm) {
+                    /* The captured batch already includes h[L-1]; overwrite that row instead of duplicating it at L. */
+                    cache_window_ok =
+                        metal_graph_dspark_cache_target_prefix(&s->graph, feature_pos);
+                }
             } else {
-                cache_window_ok =
-                    metal_graph_dspark_cache_crop_to_prefix(&s->graph, pos) &&
-                    metal_graph_dspark_cache_ends_at(&s->graph, pos);
+                cache_window_ok = align_rocm ?
+                    metal_graph_dspark_cache_target_prefix(&s->graph, feature_pos) :
+                    metal_graph_dspark_cache_crop_to_prefix(&s->graph, feature_pos) &&
+                    metal_graph_dspark_cache_ends_at(&s->graph, feature_pos);
             }
         }
         DS4_DSPARK_PROP_ADD(propose_cache_ms, cache_t0);
@@ -70538,6 +70655,16 @@ static int ds4_session_eval_dspark_speculative_argmax(
             }
             DS4_DSPARK_STATS_FINISH();
             return n_accept;
+        }
+    }
+    if (!ignore_eos) {
+        /* Keep the verified state at the same frontier as the returned tokens,
+         * including when a fused seed moves EOS into the draft interior. */
+        for (int i = 0; i < draft_n; i++) {
+            if (drafts[i] == eos_token) {
+                draft_n = i + 1;
+                break;
+            }
         }
     }
     if (stats_enabled) {
@@ -74466,11 +74593,18 @@ static int ds4_session_eval_speculative_argmax_impl(
             }
         }
     }
+    const bool align_rocm_dspark =
+        e->support_kind == DS4_SUPPORT_DSPARK &&
+        ds4_session_dspark_rocm_gfx1151_reference_alignment(s);
     const bool seed_batch_dspark =
         can_prepare_support_draft &&
         e->support_kind == DS4_SUPPORT_DSPARK &&
         ds4_session_dspark_seed_batch_enabled(s) &&
         sample_argmax(s->logits, DS4_N_VOCAB) == first_token;
+    if (align_rocm_dspark && can_prepare_support_draft && !seed_batch_dspark) {
+        /* Pair the incoming seed t[L] with the captured target feature h[L-1]. */
+        (void)ds4_session_prepare_dspark_draft(s, first_token, (uint32_t)s->checkpoint.len);
+    }
     if (seed_batch_dspark) {
         s->dspark_draft_valid = false;
         s->dspark_draft_len = 0;
@@ -74505,7 +74639,7 @@ static int ds4_session_eval_speculative_argmax_impl(
                     accepted, accepted_cap, err, errlen);
             if (fused_n != 0) return fused_n;
         }
-        if (ds4_session_dspark_seed_batch_short_fallback(s)) {
+        if (ds4_session_dspark_seed_batch_short_fallback(s) || align_rocm_dspark) {
             /* A declined proposal already consumed this cycle's confidence and
              * scheduler decision. Do not draft the same seed again after decode. */
             if (ds4_session_eval_probe_tp(s, first_token, false, err, errlen) != 0)
@@ -74526,7 +74660,7 @@ static int ds4_session_eval_speculative_argmax_impl(
     }
     if (ds4_session_eval_probe_tp(s,
                                   first_token,
-                                  can_prepare_support_draft,
+                                  can_prepare_support_draft && !align_rocm_dspark,
                                   err,
                                   errlen) != 0) return -1;
     int n_accept = 0;
@@ -75293,8 +75427,13 @@ int ds4_session_eval_speculative(ds4_session *s, int first_token,
 
     s->dspark_sample_temperature = temperature;
     s->dspark_sample_rng = can_prepare ? rng : NULL;
+    const bool align_rocm_dspark =
+        stochastic_dspark && ds4_session_dspark_rocm_gfx1151_reference_alignment(s);
+    if (can_prepare && align_rocm_dspark) {
+        (void)ds4_session_prepare_dspark_draft(s, first_token, (uint32_t)s->checkpoint.len);
+    }
     const int eval_rc = ds4_session_eval_probe_tp(
-        s, first_token, can_prepare, err, errlen);
+        s, first_token, can_prepare && !align_rocm_dspark, err, errlen);
     s->dspark_sample_rng = NULL;
     if (eval_rc != 0) {
         s->dspark_sample_temperature = 0.0f;

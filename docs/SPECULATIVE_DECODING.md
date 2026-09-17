@@ -43,6 +43,8 @@ The scheduler can back off when drafting is unproductive. Defaults select the
 fast paths; diagnostic environment variables are not needed for normal use.
 Recorded comparisons are in [the QA guide](../QA_BEFORE_RELEASES.md).
 
+For the tested Strix Halo coding configuration, use `--dspark --dspark-confidence 0.7` with the default five-token draft cap and scheduler. Client sampling is temperature `1.0`, `top_p=0.95`, `min_p=0`, and `top_k=0`; high reasoning was also checked on coding and tool-use requests. This uses opportunistic sampling as described below; exact-mode throughput is not qualified by these measurements. `--mtp-draft` controls legacy autoregressive MTP, not the DSpark draft width.
+
 ## GLM: built-in MTP
 
 GLM's draft block is already in its main GGUF:

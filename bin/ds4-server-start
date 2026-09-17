@@ -4,7 +4,8 @@ set -euo pipefail
 DS4_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DS4_SERVER="$DS4_DIR/ds4-server"
 
-MODEL="${DS4_SERVER_MODEL:-flash-q4-imatrix-0731}"
+MODEL="${DS4_SERVER_MODEL:-deepseek-v4-flash-vision}"
+VISION="${DS4_SERVER_VISION:-}"
 PORT="${DS4_SERVER_PORT:-17353}"
 HOST="${DS4_SERVER_HOST:-0.0.0.0}"
 CTX="${DS4_SERVER_CTX:-1000000}"
@@ -23,10 +24,11 @@ MAX_ROT="${DS4_SERVER_LOG_ROTATIONS:-5}"
 
 usage() {
   cat <<USAGE
-Usage: $(basename "$0") [-m model] [-p port] [-c ctx] [-t threads] [-w] [-q] [-h]
+Usage: $(basename "$0") [-m model] [-v vision] [-p port] [-c ctx] [-t threads] [-w] [-q] [-h]
 
 Options:
-  -m  MODEL     GGUF model path or alias (default: flash-q4-imatrix-0731)
+  -m  MODEL     GGUF model path or alias (default: deepseek-v4-flash-vision)
+  -v  FILE      Vision encoder GGUF override (default: matching model-aliases entry)
   -p  PORT      Server port (default: 17353)
   -c  CTX       Context size (default: 1000000)
   -t  THREADS   CPU threads (default: auto)
@@ -36,6 +38,7 @@ Options:
 
 Environment variables: DS4_SERVER_MODEL, DS4_SERVER_PORT, DS4_SERVER_HOST,
   DS4_SERVER_CTX, DS4_SERVER_THREADS, DS4_SERVER_QUALITY, DS4_SERVER_WARM,
+  DS4_SERVER_VISION,
   DS4_SERVER_KV_DISK_DIR, DS4_SERVER_KV_DISK_SPACE_MB,
   DS4_SERVER_KV_COLD_MAX, DS4_SERVER_KV_CONTINUED_INTERVAL,
   DS4_SERVER_TRACE,
@@ -61,9 +64,10 @@ except OSError: raise SystemExit(1)
 PY2
 }
 
-while getopts ":m:p:c:t:wqh" opt; do
+while getopts ":m:p:c:t:v:wqh" opt; do
   case "$opt" in
     m) MODEL="$OPTARG" ;;
+    v) VISION="$OPTARG" ;;
     p) PORT="$OPTARG" ;;
     c) CTX="$OPTARG" ;;
     t) THREADS="$OPTARG" ;;
@@ -116,6 +120,26 @@ for entry in config.get("model-aliases", []):
 PY4
     exit 1
   fi
+fi
+
+# --- model-specific vision encoder ---
+# An explicit -v/DS4_SERVER_VISION override takes precedence over the alias.
+if [[ -z "$VISION" && -f "$ALIAS_FILE" ]]; then
+  VISION=$(python3 - "$MODEL_ALIAS" "$MODEL" "$ALIAS_FILE" <<'PYVISION'
+import json, sys
+model_input = sys.argv[1]
+resolved_model = sys.argv[2]
+alias_file = sys.argv[3]
+with open(alias_file) as f:
+    config = json.load(f)
+for entry in config.get("model-aliases", []):
+    if (model_input == entry.get("model")
+            or resolved_model == entry.get("model")
+            or model_input in entry.get("alias", [])):
+        print(entry.get("vision") or "")
+        break
+PYVISION
+  )
 fi
 
 # --- model-specific KV cache subdirectory ---
@@ -253,6 +277,7 @@ fi
 
 # Build extra args
 EXTRA_ARGS=()
+[[ -n "$VISION" ]] && EXTRA_ARGS+=(--vision "$VISION")
 [[ "$QUALITY" == "1" ]] && EXTRA_ARGS+=(--quality)
 [[ "$WARM" == "1" ]] && EXTRA_ARGS+=(--warm-weights)
 [[ -n "$THREADS" ]] && EXTRA_ARGS+=(-t "$THREADS")
@@ -269,4 +294,4 @@ nohup ./ds4-server \
   > "$LOG" 2>&1 < /dev/null &
 
 echo $! > "$PIDFILE"
-echo "started pid=$! port=$PORT ctx=$CTX quality=$QUALITY warm=$WARM model=$MODEL log=$LOG kv_cache=${KV_DISK_DIR:-off}"
+echo "started pid=$! port=$PORT ctx=$CTX quality=$QUALITY warm=$WARM model=$MODEL vision=${VISION:-off} log=$LOG kv_cache=${KV_DISK_DIR:-off}"

@@ -24,9 +24,10 @@ typedef enum {
 
 typedef enum {
     DS4_THINK_NONE,
-    DS4_THINK_LOW,
+    DS4_THINK_LOW,      /* Qwen3.8 reasoning_effort low/medium; other models render them as HIGH */
     DS4_THINK_HIGH,
     DS4_THINK_MAX,
+    DS4_THINK_MEDIUM,
 } ds4_think_mode;
 /* Explicit numeric effort lives outside the stable named-mode values. */
 #define DS4_THINK_LEVEL_BASE 1000
@@ -306,6 +307,9 @@ bool ds4_engine_glm_layer_payload_bytes(ds4_engine *e,
 int ds4_engine_model_id(ds4_engine *e);
 bool ds4_engine_is_glm_dsa(ds4_engine *e);
 bool ds4_engine_is_glm53(ds4_engine *e);
+bool ds4_engine_is_qwen4(ds4_engine *e);
+/* Qwen3.8 reasoning-effort system instruction for a think mode (NULL when none) */
+const char *ds4_qwen4_reasoning_effort_text(ds4_think_mode mode);
 const char *ds4_backend_name(ds4_backend backend);
 bool ds4_think_mode_enabled(ds4_think_mode mode);
 int ds4_think_mode_level(ds4_think_mode mode);
@@ -523,6 +527,16 @@ typedef struct {
  * sequential fallback. */
 int ds4_sessions_eval_batch(ds4_decode_item *items, int count,
                             char *err, size_t errlen);
+/* One speculative cycle for a batch of sessions (greedy acceptance, Qwen3.8
+ * with --mtp): each item feeds its token; a pending draft rides along as a
+ * second row and is committed when it is the target's argmax.  accepted[i]
+ * lists the tokens committed for item i (the fed token, then the draft) and
+ * n_accepted[i] how many; the session's logits then follow its last
+ * committed token.  Engines without native batching run one cycle per
+ * session in turn. */
+int ds4_sessions_eval_batch_speculative_argmax(ds4_decode_item *items, int count,
+                                               int (*accepted)[2], int *n_accepted,
+                                               char *err, size_t errlen);
 /* Advance one resumed prefill suffix and an independent decode batch as one
  * scheduling step. Unsupported combinations use the ordinary serialized
  * session operations. */

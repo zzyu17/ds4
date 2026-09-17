@@ -115,6 +115,67 @@ static void test_payload_tokens(void) {
     fclose(fp);
 }
 
+static void test_text_observations(void) {
+    ds4_engine e = {0};
+    ds4_vocab *v = &e.vocab;
+    char bytes[256][5] = {{0}};
+    v->n_vocab = 260;
+    v->token = calloc((size_t)v->n_vocab, sizeof(*v->token));
+    assert(v->token);
+    table_init(&v->token_to_id, v->n_vocab);
+    table_init(&v->merge_rank, 0);
+    for (int i = 0; i < 256; i++) {
+        char *p = bytes[i];
+        utf8_put(&p, gpt2_byte_to_codepoint((uint8_t)i));
+        v->token[i] = (ds4_str){bytes[i], (uint64_t)(p - bytes[i])};
+        table_put(&v->token_to_id, v->token[i], i);
+    }
+    const char *special[] = {
+        "<|user|>", "<|observation|>", "<tool_response>", "</tool_response>"
+    };
+    for (int i = 0; i < 4; i++) {
+        v->token[256+i] = (ds4_str){special[i], strlen(special[i])};
+        table_put(&v->token_to_id, v->token[256+i], 256+i);
+    }
+    v->user_id = 256;
+    v->observation_id = 257;
+    v->tool_response_start_id = 258;
+    v->tool_response_end_id = 259;
+    const ds4_shape saved = g_ds4_shape;
+    const ds4_shape shapes[] = {DS4_SHAPE_FLASH, DS4_SHAPE_PRO, DS4_SHAPE_GLM53};
+    const char *roles[] = {"user", "tool", "function"};
+    const char *parts[] = {"ok <x> & </tool_result> </tool_response>"};
+    for (size_t family = 0; family < 3; family++) {
+        g_ds4_shape = shapes[family];
+        for (size_t role = 0; role < 3; role++) {
+            ds4_tokens expected = {0}, actual = {0};
+            ds4_tokens_push(&expected, 7);
+            ds4_tokens_push(&actual, 7);
+            ds4_chat_append_message(&e, &expected, roles[role], parts[0]);
+            char err[160] = {0};
+            assert(ds4_chat_append_multimodal_message(&e, &actual, roles[role],
+                        parts, NULL, 0, NULL, err, sizeof(err)));
+            assert(actual.len == expected.len);
+            assert(!memcmp(actual.v, expected.v, (size_t)actual.len * sizeof(int)));
+            const int len = actual.len;
+            assert(!ds4_chat_append_multimodal_message(&e, &actual, "assistant",
+                        parts, NULL, 0, NULL, err, sizeof(err)));
+            assert(actual.len == len);
+            float pixel = 1;
+            ds4_vision_embedding image = {.data = &pixel, .token_count = 1};
+            ds4_vision_span span = {0};
+            const char *image_parts[] = {"before", "after"};
+            assert(!ds4_chat_append_multimodal_message(&e, &actual, roles[role],
+                        image_parts, &image, 1, &span, err, sizeof(err)));
+            assert(actual.len == len && image.data == &pixel && !span.embedding.data);
+            ds4_tokens_free(&expected);
+            ds4_tokens_free(&actual);
+        }
+    }
+    g_ds4_shape = saved;
+    vocab_free(v);
+}
+
 #ifndef DS4_NO_GPU
 static void test_glm_attention_budget(void) {
     const ds4_shape saved_shape = g_ds4_shape;
@@ -231,6 +292,7 @@ int main(void) {
     test_rewind();
     test_session_memory();
     test_payload_tokens();
+    test_text_observations();
 #ifndef DS4_NO_GPU
     test_glm_attention_budget();
     test_glm_spec_rollback();

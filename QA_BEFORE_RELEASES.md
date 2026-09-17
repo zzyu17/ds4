@@ -771,6 +771,21 @@ Do not use high-performance Hugging Face Xet mode while vLLM is resident.
   must be exact with reused scratch, an undersized buffer, and captured graph
   replays after input changes. Include full-model prefill and decode logits;
   a short token comparison cannot detect stale scratch contents.
+- After CUDA DSpark changes, run `make test-cuda-dspark-moe CUDA_ARCH=sm_121`
+  and `compute-sanitizer --error-exitcode 1 tests/test_cuda_dspark_moe --check-only`.
+  Cover one through eight rows, distinct/shared/partly overlapping experts,
+  invalid negative selections, and Q2 down assignments spanning several launch
+  tiles. Deduplicated gate/up rows must match separate one-token calls exactly.
+  Run the Q8 scratch test too: every small batch must equal its separate rows.
+  Repeat the section 4 greedy, opportunistic, exact-sampling and forced-partial
+  fixtures with matching 0731 weights. CUDA retains all five intermediate
+  prefixes of a six-token seed/draft block; ordinary partial accepts must not
+  need replay. Keep the scheduler's seed count separate from successful drafts.
+  Exercise a live speculative cache before and after continued prefill at
+  2K, 4K and 8K frontiers. Also compare the official continuation scorer with
+  `DS4_METAL_PREFILL_CHUNK=6` in both control and candidate builds: this shared
+  diagnostic override exercises the small CUDA batches, unlike ordinary
+  teacher-forced single-token scoring alone.
 - For native MXFP4 changes, run
   `make test-mxfp4-cuda CUDA_ARCH=native` on the multi-GPU CUDA host only after
   receiving explicit permission for `192.168.60.250`, and
@@ -889,7 +904,7 @@ a substitute for CUDA or Metal release testing.
   Require proposals, accepted draft tokens, at least one direct state commit,
   zero verifier errors, and no unexplained replay fallbacks. With
   `DS4_DSPARK_SPEC_LOG=1`, a five-of-six commit may report `prefix-extended`:
-  CUDA/ROCm retain four prefix snapshots and replay just the fifth token.
+  ROCm retains four prefix snapshots and replays just the fifth token.
   This bounded fallback is expected; other replays need investigation.
   Record ordinary and DSpark
   generation speed separately. When direct verifier-state handling changes,
@@ -964,6 +979,40 @@ clients.
 - `GET /v1/models/deepseek-v4-flash` and `GET /v1/models/deepseek-v4-pro`
   should both serve whichever GGUF is loaded.
 - Test OpenAI chat completion, OpenAI Responses, and Anthropic messages.
+- After tool-parser changes, run `make test-frontends` and
+  `make test-session-state`. These targets do not load model weights. Repeat
+  the frontend suites with ASan/UBSan for parser and buffer changes.
+- Test both DeepSeek DSML and GLM tool syntax. Split closing delimiters at
+  every byte boundary; sampled argument text must not become greedy syntax
+  merely because a token ends in `<`. Literal thinking/tool markers inside
+  arguments must not end the call. Check ordinary HTML entities, literal
+  closing-wrapper escapes, and repeated escape spellings through rendering,
+  parsing, streaming and canonical history replay.
+- Truncate a tool argument using a small output budget and an explicit client
+  stop, with and without streaming. Preserve `length` versus `stop`, never
+  invent a complete action from an unfinished argument, and do not retry after
+  a client stop. Model-error recovery must share the original output budget;
+  usage includes the failed attempt. Partial SSE arguments may remain partial.
+- Run a real Pi or other coding-client read/write/edit/build/test loop with
+  GLM MTP and matching DeepSeek DSpark, in default and exact-sampling modes.
+  Discard unseen speculative suffixes after tool/stop markers. Exact sampling
+  must resample when the parser changes sampling mode; default opportunistic
+  decoding should retain already-verified greedy drafts across that change.
+  Check tool-result continuation through all three API formats. Responses
+  requires full input replay, not an unsupported `previous_response_id`.
+- Exercise actual `ds4-server` coding sessions, not only direct ds4-agent or
+  isolated HTTP requests. Use Pi, OpenCode or another supported coding client
+  for several read/edit/build/test rounds, including a harmless tool failure
+  and recovery. Grow the conversation past 4K tokens and continue it.
+  Capture `--trace` and check tool IDs, raw tool replay, rendered prompts,
+  cache source, matched-prefix length and continued-prefill size after each
+  tool result. An unchanged history should retain its reusable prefix;
+  investigate repeated full prefills or unexplained canonicalization rebuilds.
+  Conversely, editing an earlier message must invalidate the changed suffix.
+  Compare a continued request with a fresh replay of the same full history,
+  checking tool arguments, coherent output and context isolation. Record any
+  necessary rebuild and its latency rather than counting a working tool alone
+  as proof that prefix matching works.
 - Test SSE streaming with thinking enabled and disabled.
 - Test keepalive during long prefill and confirm clients do not time out.
 - In batched mode, close clients while their requests are queued, prefilling,
@@ -982,6 +1031,27 @@ clients.
   2048-token prefill cap; a silent fallback to 4096 is an OOM regression.
 - Test `--trace` and confirm rendered prompts, cache decisions, generated text,
   and tool-parser events are useful without leaking unrelated state.
+
+September 6 focused tool-call QA passed with resident Flash 0731 Q2 + DSpark
+and GLM 5.3 Flash Q2 + MTP on the GB10 Spark, using 8K contexts. Pi completed
+read/write/edit/build/test loops in default and exact-sampling modes for both
+models. Direct ds4-agent tasks also passed, preserving literal HTML entities
+through file creation and editing. Independent 1,650-case clamp checks passed
+for each generated program. OpenAI streaming/nonstreaming, Anthropic and
+Responses tool-result continuations passed; output-limit and client-stop
+cases returned no fabricated complete call. Disconnected tool streams were
+followed by valid replies in under a second. Metal and CUDA frontend builds
+were warning-free; model-free frontend, CPU ASan/UBSan, session-state and TP
+command tests passed.
+
+This is not full-model or full-backend release sign-off. The reported full
+GLM 5.3 Q4 failure on a 512 GB Ultra was not reproduced with its exact weights,
+prompt and request settings. Capture raw output, source revision, output
+budget and stop reason before attributing `unterminated tool call` to inference
+quality or memory. Adversarial live prompts asking both models to copy literal
+thinking/tool-end tags were not copied faithfully: traces showed the models
+changed the text before parsing. Deterministic parser/stream tests preserve
+those markers, but that does not establish model-level copying accuracy.
 
 ## 13. ds4-agent
 
@@ -1019,6 +1089,13 @@ The agent is the most stateful component.  Test it manually, not only by build.
   Run the opportunistic default and `--mtp-exact-sampling`. The M5 Max
   opportunistic smoke created, compiled, and ran a C program printing
   `OPPORTUNISTIC_OK`, accepting 196 of 235 draft tokens.
+- After message-format changes, run `make test-session-state`. Text-only
+  observations through the multimodal API must equal ordinary message tokens
+  for Flash, PRO and GLM, including closing-wrapper escaping. They must not
+  require a vision model. A rejection here once masqueraded as context
+  exhaustion after even a tiny shell result; increasing context cannot fix it.
+  Rendering/image-observation errors must be reported directly without
+  compacting the conversation as though it had run out of context.
 - Bash tools:
   test short output, large output truncation, non-zero exit output, long-running
   jobs, `bash_status`, and `bash_stop`.
@@ -1163,6 +1240,73 @@ Compute Sanitizer memcheck reported zero errors. This is a single-GPU result,
 not a claim about multi-GPU speed or speculative acceptance.
 The final CUDA and ROCm builds were warning-free; ROCm attention, KDA and memory
 admission tests passed after removing the unused Q8 matvec kernels.
+
+September 6 DGX Spark DSpark checks use the matching Flash 0731 Q2 target and
+0731 support file, fully resident. Three interleaved runs per variant, 256
+generated tokens, 4,096 allocated context, prefill chunk 512, and the same C
+hash-table/prose prompts and sampling settings as the M5 comparisons below:
+
+| Workload | Ordinary decode | Previous DSpark | New DSpark |
+| --- | ---: | ---: | ---: |
+| C hash table, temperature 0 | 19.72 t/s | 23.44 t/s | 31.41 t/s |
+| C hash table, temperature 1 | 19.53 t/s | 25.03 t/s | 29.98 t/s |
+| Unpredictable prose, temperature 1 | 19.53 t/s | 18.16 t/s | 18.81 t/s |
+
+Temperature 1 uses the existing opportunistic policy, not exact sampling.
+Coding improves 59%/54% over ordinary decode and 34%/20% over previous DSpark.
+Low-acceptance prose still favors ordinary decoding. The defaults batch the
+seed with useful longer drafts and use existing aligned kernels for small Q8
+and IQ2/Q2 batches. No new enabling switches or production kernels are needed.
+A separate three-run paired ablation gives `30.46/28.65` t/s for the expert
+dispatch alone at temperature 0/1 and `31.39/30.08` with the Q8 dispatch too,
+an additional 3.1%/5.0%. The retained commits are `df80a87d`, `f6c169f8`,
+`45f54e9d` and `2803820d`; the agent observation fix is `558cd343`.
+Single paired checks at 400/800-token limits on the same greedy C prompt give
+`19.73/19.62` t/s ordinary versus `33.00/33.16` t/s new DSpark, with zero
+verifier errors or replays. Keep these separate from the three-run medians.
+The live Promessi Sposi sweep (128 generated tokens, 9,216 allocated context,
+chunk 512) has low draft acceptance: at 2K/4K/8K, total generation is
+`19.24/16.26/15.97` t/s ordinary, `18.12/15.44/15.11` with seed batching
+disabled on the new kernels, and `18.48/16.24/15.67` with the new defaults.
+The disabled-seed control is not the old executable. Initial/continued prefill
+is roughly `625/660/650` t/s in these runs, with no material change. This
+single paired sweep confirms working continued contexts, not a universal
+DSpark speedup. Retain the complete CSVs, including first-cycle latency.
+
+The normal 100-case continuation TSV remains
+byte-identical to the control above. With six-token prefill chunks, control and
+candidate NLL are `0.422579437` and `0.424830442` (+0.533%); first-token matches
+are `50/51`, mean greedy prefixes `5.050/5.260`, and top-token agreement
+`86.21/86.42%`. Cases favor the candidate/control `48/52`. A paired case bootstrap
+gives a 95% interval of `[-0.00702, 0.01153]` for the NLL/token difference.
+This is mixed numerical variation, not bit-exact inference or evidence of a
+quality improvement. Do not hide the slightly higher loss behind the better
+greedy agreement.
+
+The 54 Q8 scratch/graph cases and the tiny IQ2/Q2 expert tests pass, including
+different gate/up weights and exact batched-versus-single-row comparisons.
+Compute Sanitizer memcheck, racecheck and synccheck report zero errors.
+Two- and six-session server-prefill/decode oracles pass 24 steps with
+byte-identical full logits versus separate sessions. Greedy, opportunistic,
+exact-sampling and forced-partial fixtures pass all five prompts with zero
+verifier errors. CUDA retains five intermediate prefixes, eliminating replay
+in these ordinary partial-accept cases. The continued-state oracle passes two
+128-token phases at each of the 127/2047/4095/8191-token frontiers; worst
+serial-target argmax gaps are `0.026638/0.254242/0/0.249626`, within the existing
+verifier bound. Minimum usable RAM during these checks was 8.82 GiB, excluding
+CMA. These are single-Spark checks, not a new multi-GPU or all-backend sign-off.
+
+Both opportunistic and exact DSpark agent runs created a C clamp function,
+compiled and ran its tests, edited the degenerate-interval cases, then compiled
+and ran again. An independent exhaustive check of small integer ranges passed
+for both generated programs. Draft acceptance was `875/1017` and `431/504`,
+respectively, with zero verifier errors or replay fallbacks. The first attempt
+stopped after announcing a directory inspection; a fresh-cache retry exposed
+the text-only tool-observation rejection described in section 8. After fixing
+that shared helper, both complete tasks passed. The helper's CPU regression
+also passed AddressSanitizer and UndefinedBehaviorSanitizer. Do not count the
+failed attempts as passing runs or attribute the context error to insufficient
+RAM.
 
 For M5 dense-kernel changes, run `MTL_DEBUG_LAYER=1 make test-metal-dense-mpp`.
 It checks Q8 decode and Q4_0/Q4_K prefill against exactly representable CPU

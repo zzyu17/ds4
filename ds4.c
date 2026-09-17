@@ -41,6 +41,7 @@
 #include <unistd.h>
 
 #include "ds4.h"
+#include "ds4_tool_text.h"
 #include "ds4_distributed.h"
 #include "ds4_image.h"
 #include "ds4_tp.h"
@@ -2600,7 +2601,8 @@ static void print_size(uint64_t bytes) {
 #define DS4_DSPARK_MAX_TARGET_LAYERS 8
 #define DS4_DSPARK_MAX_STAGES 8
 #define DS4_DSPARK_MAX_BLOCK_SIZE 16
-#ifdef __APPLE__
+#if defined(__APPLE__) || (!defined(DS4_ROCM_BUILD) && !defined(DS4_NO_GPU))
+/* Seed plus five drafts needs five intermediate compressor frontiers. */
 #define DS4_SPEC_PREFIX_SLOTS 5
 #else
 #define DS4_SPEC_PREFIX_SLOTS 4
@@ -39853,13 +39855,12 @@ static void bpe_tokenize_wrapped_payload_text(ds4_vocab *vocab, const char *cont
      * Preserve literal '<', '>' and '&' so shell output and file snippets stay
      * intact, but escape the exact closing sentinel so a malicious or accidental
      * tool payload cannot terminate the wrapper early. */
-    const size_t endlen = strlen(end);
     const char *span = content ? content : "";
     const char *p = span;
     while (*p) {
-        if (!strncmp(p, end, endlen)) {
+        if (ds4_tool_text_needs_escape(p, end)) {
             tokenize_span(vocab, span, (size_t)(p - span), out);
-            bpe_tokenize_text(vocab, "&lt;", out);
+            bpe_tokenize_text(vocab, *p == '<' ? "&lt;" : "&amp;", out);
             p++;
             span = p;
         } else {
@@ -54359,6 +54360,14 @@ static bool ds4_session_dspark_seed_batch_enabled(
     if (!s || !s->engine) return false;
     const ds4_engine *e = s->engine;
     const ds4_layer_weights *layer = &e->weights.layer[DS4_N_LEADING_DENSE];
+#if !defined(__APPLE__) && !defined(DS4_ROCM_BUILD)
+    if (e->backend == DS4_BACKEND_CUDA && ds4_gpu_device_is_spark()) {
+        return !e->ssd_streaming && !e->dspark_exact_sampling &&
+               layer->ffn_gate_exps && layer->ffn_down_exps &&
+               layer->ffn_gate_exps->type == DS4_TENSOR_IQ2_XXS &&
+               layer->ffn_down_exps->type == DS4_TENSOR_Q2_K;
+    }
+#endif
     /* Keep streaming and unmeasured weight/device combinations on their
      * existing schedule. No sampling decision is changed by this dispatch. */
     return e->backend == DS4_BACKEND_METAL && !e->ssd_streaming &&
@@ -54369,6 +54378,16 @@ static bool ds4_session_dspark_seed_batch_enabled(
              layer->ffn_down_exps->type == DS4_TENSOR_Q2_K) ||
             (e->tp.active && layer->ffn_gate_exps->type == DS4_TENSOR_MXFP4 &&
              layer->ffn_down_exps->type == DS4_TENSOR_MXFP4));
+}
+
+static bool ds4_session_dspark_seed_batch_short_fallback(const ds4_session *s) {
+    if (s->engine->backend == DS4_BACKEND_METAL) return true;
+#if !defined(__APPLE__) && !defined(DS4_ROCM_BUILD)
+    return s->engine->backend == DS4_BACKEND_CUDA &&
+           ds4_gpu_device_is_spark();
+#else
+    return false;
+#endif
 }
 
 static bool ds4_dspark_scheduler_enabled(const ds4_session *s) {
@@ -54386,10 +54405,17 @@ static uint32_t ds4_dspark_scheduler_window(const ds4_session *s) {
 }
 
 static uint32_t ds4_dspark_scheduler_skip_cycles(const ds4_session *s) {
-    const uint32_t fallback =
-        s && s->engine->backend == DS4_BACKEND_METAL &&
+    uint32_t fallback =
+        s && ds4_session_dspark_seed_batch_short_fallback(s) &&
         ds4_session_dspark_seed_batch_enabled(s) ? 32u :
         ds4_dspark_rocm_gfx1151_fast_path() ? 4u : 2u;
+#if !defined(__APPLE__) && !defined(DS4_ROCM_BUILD)
+    /* Recheck sooner after useful long drafts; low-acceptance prose keeps
+     * the longer pause instead of paying for another unproductive proposal. */
+    if (s && s->dspark_sched_long_accept_seen &&
+        ds4_session_dspark_seed_batch_enabled(s) && ds4_gpu_device_is_spark())
+        fallback = 8u;
+#endif
     return ds4_dspark_env_u32("DS4_DSPARK_SCHEDULER_SKIP", fallback);
 }
 
@@ -56151,6 +56177,10 @@ bool ds4_engine_has_mtp(ds4_engine *e) {
     return e && e->backend != DS4_BACKEND_CPU &&
            e->distributed.role == DS4_DISTRIBUTED_NONE &&
            e->mtp_ready;
+}
+
+bool ds4_engine_mtp_exact_sampling(ds4_engine *e) {
+    return e && e->dspark_exact_sampling;
 }
 
 int ds4_engine_mtp_draft_tokens(ds4_engine *e) {
@@ -64298,11 +64328,22 @@ int ds4_chat_append_multimodal_message(
     }
     const bool tool = !strcmp(role, "tool") || !strcmp(role, "function");
     const bool user = !strcmp(role, "user");
-    if ((DS4_MODEL_FAMILY != DS4_MODEL_FAMILY_GLM_DSA &&
-         e->vision_kind != DS4_VISION_DEEPSEEK4) || (!tool && !user)) {
+    if (!tool && !user) {
         if (error && error_cap)
             snprintf(error, error_cap,
                      "multimodal messages require a supported user or tool role");
+        return 0;
+    }
+    /* Text-only tool results do not require vision support and must retain
+     * the model's normal wrapper and payload escaping. */
+    if (image_count == 0) {
+        ds4_chat_append_message(e, tokens, role, text_parts[0]);
+        return 1;
+    }
+    if (DS4_MODEL_FAMILY != DS4_MODEL_FAMILY_GLM_DSA &&
+        e->vision_kind != DS4_VISION_DEEPSEEK4) {
+        if (error && error_cap)
+            snprintf(error, error_cap, "model does not support image messages");
         return 0;
     }
     for (size_t i = 0; i < image_count; i++) {
@@ -70269,9 +70310,10 @@ static int ds4_session_eval_dspark_speculative_argmax(
         size_t       errlen) {
     /* n_accept == 0 means the already-chosen seed is inside this batch. */
     const int seed_tokens = n_accept == 0 ? 1 : 0;
-    /* Preserve the separately tuned CUDA/ROCm scheduling policy. */
+    /* A seed was already selected by the target; it is not a draft success.
+     * Preserve the separately tuned ROCm policy. */
     const int scheduler_seed_tokens =
-        s && s->engine->backend == DS4_BACKEND_METAL ? seed_tokens : 0;
+        s && ds4_session_dspark_seed_batch_short_fallback(s) ? seed_tokens : 0;
     const bool spec_log = getenv("DS4_DSPARK_SPEC_LOG") != NULL;
     const bool stats_enabled = s && ds4_dspark_stats_enabled();
     const bool scheduler_enabled = s && ds4_dspark_scheduler_enabled(s);
@@ -74299,7 +74341,8 @@ static int ds4_session_eval_speculative_argmax_impl(
             /* A short, low-confidence suffix rarely repays a batched seed.
              * Decode the seed once, then check the already-prepared first
              * draft against its logits without running another proposal. */
-            if (e->backend == DS4_BACKEND_METAL && s->dspark_draft_len < 3) {
+            if (ds4_session_dspark_seed_batch_short_fallback(s) &&
+                s->dspark_draft_len < 3) {
                 if (ds4_session_eval_probe_tp(s, first_token, false, err, errlen) != 0)
                     return -1;
                 accepted[0] = first_token;
@@ -74320,7 +74363,7 @@ static int ds4_session_eval_speculative_argmax_impl(
                     accepted, accepted_cap, err, errlen);
             if (fused_n != 0) return fused_n;
         }
-        if (e->backend == DS4_BACKEND_METAL) {
+        if (ds4_session_dspark_seed_batch_short_fallback(s)) {
             /* A declined proposal already consumed this cycle's confidence and
              * scheduler decision. Do not draft the same seed again after decode. */
             if (ds4_session_eval_probe_tp(s, first_token, false, err, errlen) != 0)
@@ -75195,8 +75238,9 @@ int ds4_session_prefill_cap(ds4_session *s) {
  * raw attention window can hide a stale speculative prefix. */
 bool ds4_test_dspark_prefix_capture(ds4_engine *engine, const ds4_tokens *prompt) {
     ds4_session *ref = NULL, *spec = NULL;
-    bool ok = ds4_session_create(&ref, engine, 32768) == 0 &&
-              ds4_session_create(&spec, engine, 32768) == 0;
+    const int ctx = prompt->len + 16;
+    bool ok = ds4_session_create(&ref, engine, ctx) == 0 &&
+              ds4_session_create(&spec, engine, ctx) == 0;
     int tokens[6], tops[6];
     uint32_t counts[6][DS4_MAX_LAYER], index_counts[6][DS4_MAX_LAYER];
     char err[160];

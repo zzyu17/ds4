@@ -1,4 +1,5 @@
 #include "ds4.h"
+#include "ds4_tool_text.h"
 #include "ds4_distributed.h"
 #include "ds4_gpu_args.h"
 #include "ds4_help.h"
@@ -1608,7 +1609,7 @@ static void agent_tool_calls_free(agent_tool_calls *calls) {
 
 static void agent_tool_call_add_arg(agent_tool_call *c, const char *name,
                                     const char *value, size_t value_len,
-                                    bool is_string) {
+                                    bool is_string, const char *end_tag) {
     if (c->argc == c->argcap) {
         c->argcap = c->argcap ? c->argcap * 2 : 4;
         c->args = xrealloc(c->args, (size_t)c->argcap * sizeof(c->args[0]));
@@ -1618,6 +1619,7 @@ static void agent_tool_call_add_arg(agent_tool_call *c, const char *name,
         .value = xstrndup(value, value_len),
         .is_string = is_string,
     };
+    if (is_string) ds4_tool_text_unescape(c->args[c->argc - 1].value, end_tag);
 }
 
 static void agent_tool_calls_push(agent_tool_calls *calls, agent_tool_call *call) {
@@ -1838,15 +1840,11 @@ static void agent_glm_tool_parse(agent_dsml_parser *p) {
         const char *end = p->raw + p->raw_len;
         if (p->state == AGENT_DSML_PARAM_VALUE) {
             const char *value_end = strstr(raw + p->param_value_start, arg_value_close);
-            if (!value_end) {
-                const char *call_end = strstr(raw + p->param_value_start, close);
-                if (call_end) agent_dsml_set_error(p, "unterminated <arg_value> in GLM tool call");
-                return;
-            }
+            if (!value_end) return;
             agent_tool_call_add_arg(&p->current, p->param_name ? p->param_name : "",
                                     raw + p->param_value_start,
                                     (size_t)(value_end - (raw + p->param_value_start)),
-                                    true);
+                                    true, arg_value_close);
             free(p->param_name);
             p->param_name = NULL;
             p->param_close_prefix = false;
@@ -1914,11 +1912,7 @@ static void agent_glm_tool_parse(agent_dsml_parser *p) {
         }
         cur += sizeof(arg_key) - 1;
         const char *key_end_mut = strstr(cur, arg_key_close);
-        if (!key_end_mut) {
-            const char *call_end = strstr(cur, close);
-            if (call_end) agent_dsml_set_error(p, "unterminated <arg_key> in GLM tool call");
-            return;
-        }
+        if (!key_end_mut) return;
         const char *key_start = cur;
         const char *key_end = key_end_mut;
         agent_trim_span(&key_start, &key_end);
@@ -1927,6 +1921,7 @@ static void agent_glm_tool_parse(agent_dsml_parser *p) {
             return;
         }
         char *key = xstrndup(key_start, (size_t)(key_end - key_start));
+        ds4_tool_text_unescape(key, arg_key_close);
         cur = key_end_mut + sizeof(arg_key_close) - 1;
         cur = agent_skip_ascii_space(cur, end);
         if (!agent_bytes_starts_with(cur, end, arg_value)) {
@@ -1984,7 +1979,7 @@ static void agent_dsml_parse(agent_dsml_parser *p) {
             agent_tool_call_add_arg(&p->current, p->param_name ? p->param_name : "",
                                     p->raw + p->param_value_start,
                                     (size_t)(end - (p->raw + p->param_value_start)),
-                                    p->param_is_string);
+                                    p->param_is_string, "</｜DSML｜parameter>");
             p->param_close_prefix = false;
             free(p->param_name);
             p->param_name = NULL;
@@ -7054,6 +7049,33 @@ static void test_agent_glm_stream_tool_call_chunked(void) {
     agent_dsml_parser_free(&p);
 }
 
+static void test_agent_tool_argument_literal_markup(void) {
+    const char *glm[] = {
+        "<tool_call>write<arg_key>content</arg_key><arg_value><p>&amp; &lt;</p> </tool_call> </think> ",
+        "&lt;/arg_value> &amp;lt;/arg_value></arg_value></tool_call>",
+    };
+    const char *deepseek[] = {
+        "<｜DSML｜tool_calls><｜DSML｜invoke name=\"write\"><｜DSML｜parameter name=\"content\" string=\"true\"><p>&amp; &lt;</p> </tool_call> </think> ",
+        "&lt;/｜DSML｜parameter> &amp;lt;/｜DSML｜parameter></｜DSML｜parameter></｜DSML｜invoke></｜DSML｜tool_calls>",
+    };
+    const char *expected[] = {
+        "<p>&amp; &lt;</p> </tool_call> </think> </｜DSML｜parameter> &lt;/｜DSML｜parameter>",
+        "<p>&amp; &lt;</p> </tool_call> </think> </arg_value> &lt;/arg_value>",
+    };
+    for (int is_glm = 0; is_glm <= 1; is_glm++) {
+        agent_dsml_parser p;
+        char *out = agent_test_stream_capture(
+            is_glm ? AGENT_TOOL_SYNTAX_GLM : AGENT_TOOL_SYNTAX_DSML,
+            is_glm ? glm : deepseek, 2, &p, NULL);
+        AGENT_TEST_ASSERT(p.state == AGENT_DSML_DONE);
+        AGENT_TEST_ASSERT(p.calls.len == 1);
+        if (p.calls.len)
+            AGENT_TEST_ASSERT(!strcmp(agent_tool_arg_value(&p.calls.v[0], "content"), expected[is_glm]));
+        free(out);
+        agent_dsml_parser_free(&p);
+    }
+}
+
 static void test_agent_glm_stream_ignores_tool_inside_think(void) {
     const char *chunks[] = {
         "<think>plan <tool",
@@ -7308,6 +7330,7 @@ static void ds4_agent_unit_tests_run(void) {
     test_agent_glm_tool_parser_streams_param_state();
     test_agent_glm_tool_parser_multiple_adjacent_calls();
     test_agent_glm_stream_tool_call_chunked();
+    test_agent_tool_argument_literal_markup();
     test_agent_glm_stream_ignores_tool_inside_think();
     test_agent_glm_stream_greedy_sampling_boundaries();
     test_agent_dsml_stream_tool_call_chunked();
@@ -8507,16 +8530,18 @@ static bool agent_tool_observation_build(agent_worker *w,
     return true;
 }
 
-static bool agent_tool_observation_fits(agent_worker *w,
+/* -1 is a rendering/embedding error, not a request to compact the context. */
+static int agent_tool_observation_fits(agent_worker *w,
                                         const agent_tool_observation *obs,
                                         int reserve_tokens,
-                                        int *tokens_out) {
+                                        int *tokens_out,
+                                        char *err, size_t err_len) {
     ds4_tokens tmp = {0};
     ds4_vision_span *spans = NULL;
-    char err[160] = {0};
+    if (err_len) err[0] = '\0';
     if (!agent_tool_observation_build(w, obs, &tmp, &spans,
-                                      err, sizeof(err)))
-        return false;
+                                      err, err_len))
+        return -1;
     int tokens = tmp.len;
     ds4_tokens_free(&tmp);
     agent_vision_spans_free(spans, obs->image_count);
@@ -9321,7 +9346,10 @@ static int worker_run_turn(agent_worker *w, const char *user_text) {
                     break;
                 }
 
-                if (ti + 1 < ntok && next_greedy != greedy_sampling) {
+                /* Opportunistic drafts already match greedy continuation in
+                 * either mode; only exact sampling needs a new distribution. */
+                if (ti + 1 < ntok && ds4_engine_mtp_exact_sampling(w->engine) &&
+                    cfg->gen.temperature > 0.0f && next_greedy != greedy_sampling) {
                     /* Later tokens were proposed under the old parser mode.
                      * Re-evaluate this boundary token to restore its logits,
                      * then sample the suffix under the new mode. */
@@ -9409,8 +9437,11 @@ static int worker_run_turn(agent_worker *w, const char *user_text) {
         }
         int projected_tokens = 0;
         int result_reserve = agent_tool_result_reserve_tokens(w);
-        if (!agent_tool_observation_fits(w, &observation, result_reserve,
-                                         &projected_tokens))
+        char append_err[160] = {0};
+        int fits = agent_tool_observation_fits(w, &observation, result_reserve,
+                                               &projected_tokens, append_err, sizeof(append_err));
+        if (fits < 0) goto observation_error;
+        if (!fits)
         {
             if (!agent_worker_compact(w, "tool result would exceed context",
                                       compact_err, sizeof(compact_err)))
@@ -9425,8 +9456,10 @@ static int worker_run_turn(agent_worker *w, const char *user_text) {
                 agent_set_error(w, compact_err[0] ? compact_err : "context compaction failed");
                 return 1;
             }
-            if (!agent_tool_observation_fits(w, &observation, result_reserve,
-                                             &projected_tokens))
+            fits = agent_tool_observation_fits(w, &observation, result_reserve,
+                                                &projected_tokens, append_err, sizeof(append_err));
+            if (fits < 0) goto observation_error;
+            if (!fits)
             {
                 agent_tool_observation_free(&observation);
                 agent_tool_observation_init(&observation);
@@ -9438,7 +9471,10 @@ static int worker_run_turn(agent_worker *w, const char *user_text) {
                          projected_tokens, agent_worker_effective_ctx_size(w),
                          result_reserve);
                 agent_tool_observation_puts(&observation, msg);
-                if (!agent_tool_observation_fits(w, &observation, 16, NULL)) {
+                fits = agent_tool_observation_fits(w, &observation, 16, NULL,
+                                                   append_err, sizeof(append_err));
+                if (fits < 0) goto observation_error;
+                if (!fits) {
                     agent_tool_observation_free(&observation);
                     agent_dsml_parser_free(&dsml);
                     agent_set_error(w, "context full after compaction");
@@ -9446,15 +9482,9 @@ static int worker_run_turn(agent_worker *w, const char *user_text) {
                 }
             }
         }
-        char append_err[160] = {0};
         if (!agent_tool_observation_commit(w, &observation,
-                                           append_err, sizeof(append_err))) {
-            agent_tool_observation_free(&observation);
-            agent_dsml_parser_free(&dsml);
-            agent_set_error(w, append_err[0] ? append_err :
-                            "unable to append tool observation");
-            return 1;
-        }
+                                           append_err, sizeof(append_err)))
+            goto observation_error;
         agent_tool_observation_free(&observation);
         agent_dsml_parser_free(&dsml);
 
@@ -9469,6 +9499,13 @@ static int worker_run_turn(agent_worker *w, const char *user_text) {
             pthread_mutex_unlock(&w->mu);
         }
         free(queued_user);
+        continue;
+
+observation_error:
+        agent_tool_observation_free(&observation);
+        agent_dsml_parser_free(&dsml);
+        agent_set_error(w, append_err[0] ? append_err : "unable to append tool observation");
+        return 1;
     }
 }
 

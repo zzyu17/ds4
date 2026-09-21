@@ -1,16 +1,16 @@
 {
   "model-aliases": [
     {
-      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Vision-Exp-MXFP4Experts/DeepSeek-V4-Flash-Vision-Exp-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out.gguf",
-      "cache": "deepseek-v4-flash-vision",
-      "vision": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Vision-Encoder/DeepSeek-V4-Flash-Vision-Encoder.gguf",
-      "alias": ["deepseek-v4-flash-vision"]
+      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4.1-Flash/DeepSeek-V4.1-Flash-Q4.gguf",
+      "cache": "deepseek-v4.1-flash",
+      "vision": "/Users/bobo/.ollama/models/source/DeepSeek-V4.1-Flash-Vision-Encoder/DeepSeek-V4.1-Flash-Vision.gguf",
+      "alias": ["deepseek-v4.1-flash"]
     },
     {
-      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Vision-Uncensored/DeepSeek-V4-Flash-Vision-Uncensored-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out.gguf",
-      "cache": "deepseek-v4-flash-vision-uncensored",
-      "vision": "/Users/bobo/.ollama/models/source/DeepSeek-V4-Flash-Vision-Encoder/DeepSeek-V4-Flash-Vision-Encoder.gguf",
-      "alias": ["deepseek-v4-flash-vision-uncensored"]
+      "model": "/Users/bobo/.ollama/models/source/DeepSeek-V4.1-Flash-UNCENSORED-FP8/DeepSeek-V4.1-Flash-UNCENSORED-Q4.gguf",
+      "cache": "deepseek-v4.1-flash-uncensored",
+      "vision": "/Users/bobo/.ollama/models/source/DeepSeek-V4.1-Flash-Vision-Encoder/DeepSeek-V4.1-Flash-Vision.gguf",
+      "alias": ["deepseek-v4.1-flash-uncensored"]
     },
     {
       "model": "/Users/bobo/.ollama/models/source/GLM-5.3-Flash-FP8/GLM-5.3-Flash-Q8_0.gguf",

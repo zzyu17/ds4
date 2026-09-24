@@ -1,0 +1,1 @@
+2026-09-24T12:52:13+0800 score_official failed model=deepseek_v41_flash fixture=gguf-tools/quality-testing/data/flash/manifest.tsv; inspect /tmp/ds41f-glm53f-comparison-20260923-quality-20260923T155953Z-2212068/results/quality/nll/deepseek_flash/deepseek_v41_flash.log

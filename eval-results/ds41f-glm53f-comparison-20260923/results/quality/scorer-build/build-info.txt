@@ -1,0 +1,8 @@
+repo_commit=3d71849
+compiler=/usr/bin/cc
+source=gguf-tools/quality-testing/score_official.c
+source_bytes=41117
+source_sha256=e5b7c3ef22b36574a37288af36c3247fb35eec3f51525ccf04c1ef601a4279bb
+built_local=2026-09-24T16:23:24+08:00
+binary_bytes=2451104
+binary_sha256=4dd64b6993aa9df44acc7c0fd3e08795d0e373346d76cc6282669acca68a1004

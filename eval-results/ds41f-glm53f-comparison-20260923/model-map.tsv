@@ -1,0 +1,5 @@
+label	model_file	quant	bytes
+deepseek_v41_flash	/Users/bobo/.ollama/models/source/DeepSeek-V4.1-Flash/DeepSeek-V4.1-Flash-Q4.gguf	Q4	518596067328
+deepseek_v41_flash_uncensored	/Users/bobo/.ollama/models/source/DeepSeek-V4.1-Flash-UNCENSORED-FP8/DeepSeek-V4.1-Flash-UNCENSORED-Q4.gguf	Q4	518596067328
+glm53_flash	/Users/bobo/.ollama/models/source/GLM-5.3-Flash-FP8/GLM-5.3-Flash-Q8_0.gguf	Q8_0	346702930528
+glm53_flash_uncensored	/Users/bobo/.ollama/models/source/GLM-5.3-Flash-Uncensored-FP8/GLM-5.3-Flash-Uncensored-Q8_0.gguf	Q8_0	346702930240

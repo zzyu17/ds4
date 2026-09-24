@@ -1,0 +1,10 @@
+host=Bos-Mac-Studio.local
+os=Darwin 24.3.0 arm64
+remote_time=2026-09-23T04:00:15+0800
+repo=/Users/bobo/.ollama/ds4
+commit=3d71849
+worktree=clean
+python3=/usr/bin/python3
+Python 3.9.6
+disk=/dev/disk3s5   3.6Ti   3.1Ti   555Gi    85%    3.6M  5.8G    0%   /System/Volumes/Data
+active_ds4_processes=

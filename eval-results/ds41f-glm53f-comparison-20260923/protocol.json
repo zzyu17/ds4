@@ -1,0 +1,40 @@
+{
+  "campaign": "ds41f-glm53f-comparison-20260923",
+  "local_artifact_root": "/mnt/v/.ollama/ds4/eval-results/ds41f-glm53f-comparison-20260923",
+  "remote_repo": "/Users/bobo/.ollama/ds4",
+  "remote_host": "bobo@100.108.196.57",
+  "repo_commit": "3d71849",
+  "models": {
+    "deepseek_v41_flash": "/Users/bobo/.ollama/models/source/DeepSeek-V4.1-Flash/DeepSeek-V4.1-Flash-Q4.gguf",
+    "deepseek_v41_flash_uncensored": "/Users/bobo/.ollama/models/source/DeepSeek-V4.1-Flash-UNCENSORED-FP8/DeepSeek-V4.1-Flash-UNCENSORED-Q4.gguf",
+    "glm53_flash": "/Users/bobo/.ollama/models/source/GLM-5.3-Flash-FP8/GLM-5.3-Flash-Q8_0.gguf",
+    "glm53_flash_uncensored": "/Users/bobo/.ollama/models/source/GLM-5.3-Flash-Uncensored-FP8/GLM-5.3-Flash-Uncensored-Q8_0.gguf"
+  },
+  "performance": {
+    "runner": "ds4-bench",
+    "exact_kernels": true,
+    "context_frontiers": [2048, 4096, 8192, 16384, 32768, 65536],
+    "repetitions_per_model": 3,
+    "generated_tokens_per_frontier": 128,
+    "prompt": "100000 seeded random lowercase words, Python random seed 42",
+    "model_order": "rotated by one model per repetition"
+  },
+  "quality": {
+    "eval_runner": "ds4-eval",
+    "eval_cases_per_model": 92,
+    "eval_args": ["--quality", "--think", "--plain", "--tokens", "16000", "--temp", "0", "--seed", "1"],
+    "nll_runner": "gguf-tools/quality-testing/score_official",
+    "nll_context": 4096,
+    "nll_fixtures": {
+      "deepseek_v41_pair": [
+        "gguf-tools/quality-testing/data/flash/manifest.tsv",
+        "gguf-tools/quality-testing/data/manifest.tsv"
+      ],
+      "glm53_pair": [
+        "gguf-tools/quality-testing/data/glm53-flash-openrouter-zai-fp8-100/manifest.tsv"
+      ]
+    },
+    "comparisons": "within-family censored versus uncensored only"
+  },
+  "artifact_policy": "final run artifacts and results are stored locally under this directory; remote staging is temporary and removed after checksum-verified transfer"
+}
